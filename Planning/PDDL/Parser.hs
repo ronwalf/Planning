@@ -29,6 +29,7 @@ class Show a => TermFactory a where
 
 
 class (Show a) => ConditionFactory a b | a -> b where
+    makeTrue        :: a
     makeAtomic      :: String -> [b] -> a
     makeNegation    :: a -> a
     makeConjunct    :: [a] -> a
@@ -62,6 +63,7 @@ instance TermFactory String where
     makeConst = id
 
 instance ConditionFactory String String where
+    makeTrue = "()"
     makeAtomic  p tl = "(" ++ p ++ (concatMap(' ':) tl) ++ ")"
     makeNegation c = "(not " ++ c ++ ")"
     makeConjunct cl = "(and" ++ (concatMap (' ':) cl) ++ ")"
@@ -83,7 +85,10 @@ pddlLanguage = Token.LanguageDef {
     Token.identLetter = (alphaNum <|> oneOf "_-"),
     Token.opStart = oneOf [],
     Token.opLetter = oneOf [],
-    Token.reservedNames = ["and", "exists", "forall", "imply", "not", "when"] ++ comparisons,
+    Token.reservedNames = ["and", "exists", "forall", "imply", "not", "when", -- Conjunctives
+        ":constants", ":constraints", "define", "domain", ":functions", ":predicates", ":requirements", ":types", -- Domain info
+        ":action", ":effect", ":parameters", ":precondition" -- Action info
+        ] ++ comparisons,
     Token.reservedOpNames = [],
     Token.caseSensitive = False
 }
@@ -120,11 +125,9 @@ parseTypedList lex el = many (do
 domainParser :: (DomainInfoSink a b c) => Token.TokenParser a -> (GenParser Char a ()) -> (GenParser Char a ()) -> GenParser Char a a
 -- domainParser :: Token.TokenParser String -> b
 domainParser lex domainInfoParser domainItemParser = T.whiteSpace lex >> T.parens lex (do
-    string "define"
-    T.whiteSpace lex
+    T.reserved lex "define"
     T.parens lex $ (do
-        string "domain"
-        T.whiteSpace lex
+        T.reserved lex "domain"
         name <- T.identifier lex
         updateState (setDomainName name)
         )
@@ -184,32 +187,27 @@ conditionParser lex =
 
 domainInfoParser lex condParser = (
     (do
-        try $ string ":requirements"
-        T.whiteSpace lex
+        try $ T.reserved lex ":requirements"
         ids <- many (char ':' >> T.identifier lex)
         updateState (setRequirements ids))
     <|>
     (do
-        try $ string ":types"
-        T.whiteSpace lex
+        try $ T.reserved lex ":types"
         types <- parseTypedList lex $ T.identifier lex
         updateState (setTypes types))
     <|>
     (do
-        try $ string ":constants"
-        T.whiteSpace lex
+        try $ T.reserved lex ":constants"
         constants <- parseTypedList lex (T.identifier lex)
         updateState (setConstants constants))
     <|>
     (do
-        try $ string ":constraints"
-        T.whiteSpace lex
+        try $ T.reserved lex ":constraints"
         conGD <- condParser
         updateState (setConstraints conGD))
     <|>
     (do
-        try $ string ":predicates"
-        T.whiteSpace lex
+        try $ T.reserved lex ":predicates"
         preds <- many $ T.parens lex (do
             pred <- T.identifier lex
             args <- parseTypedList lex $ (char '?' >> T.identifier lex)
@@ -224,27 +222,23 @@ collect collector parser =
 
 actionInfoParser lex condParser action = 
     (do
-        try $ string ":parameters"
-        T.whiteSpace lex
+        try $ T.reserved lex ":parameters"
         parameters <- T.parens lex $ parseTypedList lex $ (char '?' >> T.identifier lex)
         return $ setParameters parameters action)
     <|>
     (do
-        try $ string ":precondition"
-        T.whiteSpace lex
+        try $ T.reserved lex ":precondition"
         precondition <- T.parens lex condParser
         return $ setPrecondition precondition action)
     <|>
     (do
-        try $ string ":effect"
-        T.whiteSpace lex
+        try $ T.reserved lex ":effect"
         effect <- T.parens lex condParser
         return $ setEffect effect action)
 
 
 actionParser lex condParser = do
-    try $ string ":action"
-    T.whiteSpace lex
+    try $ T.reserved lex ":action"
     name <- T.identifier lex
     action <- collect (newAction name) (actionInfoParser lex condParser)
     updateState (addAction action)

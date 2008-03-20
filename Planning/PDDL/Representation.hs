@@ -4,7 +4,8 @@ module Planning.PDDL.Representation (
     DomainItem(..),
     Condition(..),
     Term(..),
-    emptyDomain
+    emptyDomain,
+    showType
 )where
 
 type Typed a b = (a, Maybe b)
@@ -50,8 +51,8 @@ data DomainItem =
     Action {
         actionName :: String,
         parameters :: TypedList  String String,
-        precondition :: Maybe Condition,
-        effect :: Maybe Condition
+        precondition :: Condition,
+        effect :: Condition
     }
     deriving (Eq)
 
@@ -59,17 +60,14 @@ instance Show DomainItem where
     show (Action name params precond effect) = let indent = "  " in
         "(:action " ++ name ++ "\n" ++
         indent ++ ":parameters (" ++ (unwords $ map (\x -> "?" ++ showType x) params) ++ ")\n" ++
-        indent ++ ":precondition " ++ (showCond precond) ++ "\n" ++
-        indent ++ ":effect " ++ (showCond effect) ++ "\n" ++
+        indent ++ ":precondition " ++ (show precond) ++ "\n" ++
+        indent ++ ":effect " ++ (show effect) ++ "\n" ++
         ")"
-
-        where
-            showCond Nothing = "()"
-            showCond (Just x) = show x
 
 data Condition =
     And [Condition]
     | Atomic String [Term]
+    | Empty
     | Exists (TypedList String String) Condition
     | ForAll (TypedList String String) Condition
     | Imply Condition Condition
@@ -86,6 +84,7 @@ instance Show Condition where
     show (Imply c1 c2) = "(implies " ++ (show c1) ++ " " ++ (show c2) ++ ")"
     show (Not c) = "(not " ++ (show c) ++ ")"
     show (Or cl) = "(or " ++ (unwords $ map show cl) ++ ")"
+    show Empty = "()"
     show (When c1 c2) = "(when " ++ (show c1) ++ " " ++ (show c2) ++ ")"
 
 

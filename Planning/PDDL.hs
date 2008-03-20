@@ -21,8 +21,8 @@ instance DomainInfoSink Domain Condition DomainItem where
 instance ActionInfoSink DomainItem Condition where
     newAction name = Action { actionName = name }
     setParameters params action = action { parameters = params }
-    setPrecondition cond action = action { precondition = Just cond }
-    setEffect effect action = action { effect = Just effect }
+    setPrecondition cond action = action { precondition = cond }
+    setEffect effect action = action { effect = effect }
 
 instance ConditionFactory Condition Term where
     makeAtomic = Atomic
