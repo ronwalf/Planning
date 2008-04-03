@@ -5,7 +5,9 @@ module Planning.PDDL.Representation (
     Condition(..),
     Term(..),
     emptyDomain,
-    showType
+    emptyAction,
+    showType,
+    termName
 )where
 
 type Typed a b = (a, Maybe b)
@@ -56,6 +58,13 @@ data DomainItem =
     }
     deriving (Eq)
 
+emptyAction = Action {
+    actionName = "",
+    parameters = [],
+    precondition = Empty,
+    effect = Empty
+}
+
 instance Show DomainItem where
     show (Action name params precond effect) = let indent = "  " in
         "(:action " ++ name ++ "\n" ++
@@ -97,4 +106,6 @@ instance Show Term where
     show (Const s) = s
     show (Var s) = '?':s
 
+termName (Const s) = s
+termName (Var s) = s
 

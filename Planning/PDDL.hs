@@ -19,13 +19,14 @@ instance DomainInfoSink Domain Condition DomainItem where
     addAction a (Domain (d, s)) = Domain (d, a:s)
 
 instance ActionInfoSink DomainItem Condition where
-    newAction name = Action { actionName = name }
+    newAction name = emptyAction { actionName = name }
     setParameters params action = action { parameters = params }
     setPrecondition cond action = action { precondition = cond }
     setEffect effect action = action { effect = effect }
 
 instance ConditionFactory Condition Term where
     makeAtomic = Atomic
+    makeTrue = Empty
     makeNegation = Not
     makeConjunct = And
     makeDisjunct = Or
