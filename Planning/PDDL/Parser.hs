@@ -1,3 +1,7 @@
+{-# OPTIONS -fallow-overlapping-instances #-}
+{-# OPTIONS -XFlexibleContexts #-}
+{-# OPTIONS -XPatternSignatures #-}
+{-# OPTIONS -fglasgow-exts #-}
 module Planning.PDDL.Parser where
 
 import Control.Monad
@@ -6,73 +10,6 @@ import qualified Text.ParserCombinators.Parsec.Token as Token
 import qualified Text.ParserCombinators.Parsec.Token as T
 
 import Planning.PDDL.Representation
-
-class (ActionInfoSink c b) => DomainInfoSink a b c | a -> b c where 
-    setDomainName   :: String -> a -> a
-    setRequirements :: [String] -> a -> a
-    setTypes        :: [(String, Maybe String)] -> a -> a
-    setConstants    :: [(String, Maybe String)] -> a -> a
-    setPredicates   :: [(String, [(String, Maybe String)])] -> a -> a
-    setFunctions    :: [((String, [(String, Maybe String)]), Maybe String)] -> a -> a
-    setConstraints  :: (Show b) => b -> a -> a
-    addAction       :: c -> a -> a
-
-class ActionInfoSink a b | a -> b where
-    newAction   :: String -> a
-    setParameters   :: [(String, Maybe String)] -> a -> a
-    setPrecondition :: b -> a -> a
-    setEffect       :: b -> a -> a
-
-class Show a => TermFactory a where
-    makeVar         :: String -> a
-    makeConst       :: String -> a
-
-
-class (Show a) => ConditionFactory a b | a -> b where
-    makeTrue        :: a
-    makeAtomic      :: String -> [b] -> a
-    makeNegation    :: a -> a
-    makeConjunct    :: [a] -> a
-    makeDisjunct    :: [a] -> a
-    makeImplies     :: a -> a -> a
-    makeWhen        :: a -> a -> a
-    makeUniversal   :: [(String, Maybe String)] -> a -> a
-    makeExistential :: [(String, Maybe String)] -> a -> a
-
-class (ConditionFactory a b) => PreferenceFactory a b | a -> b where
-    makePreference  :: String -> a -> a
-
-instance DomainInfoSink (IO ()) String [String] where
-    setDomainName n io = io >> putStrLn ("Domain Name: " ++ n)
-    setRequirements r io = io >> putStrLn ("Requirements: " ++ show r)
-    setTypes t io = io >> putStrLn ("Types: " ++ show t)
-    setConstants c io = io >> putStrLn ("Constants: " ++ show c)
-    setPredicates p io = io >> putStrLn ("Predicates: " ++ show p)
-    setFunctions f io = io >> putStrLn ("Functions: " ++ show f)
-    setConstraints c io = io >> putStrLn("Constraints: " ++ c)
-    addAction a io = io >> putStrLn ("Action:" ++ (concatMap (\x -> "   " ++ x ++ "\n") a))
-
-instance ActionInfoSink [String] String where
-    newAction = (:[])
-    setParameters b a = a ++ ["Parameters: " ++ show b]
-    setPrecondition b a = a ++ ["Precondition: " ++ b]
-    setEffect b a = a ++ ["Effect: " ++ b]
-
-instance TermFactory String where
-    makeVar = ('?':)
-    makeConst = id
-
-instance ConditionFactory String String where
-    makeTrue = "()"
-    makeAtomic  p tl = "(" ++ p ++ (concatMap(' ':) tl) ++ ")"
-    makeNegation c = "(not " ++ c ++ ")"
-    makeConjunct cl = "(and" ++ (concatMap (' ':) cl) ++ ")"
-    makeDisjunct cl = "(or" ++ (concatMap (' ':) cl) ++ ")"
-    makeImplies c1 c2 = "(implies " ++ c1 ++ " " ++ c2 ++ ")"
-    makeWhen c1 c2 = "(when "++ c1 ++ " " ++ c2 ++ ")"
-    makeUniversal vars c = "(forall " ++ (show vars) ++ " " ++ c ++ ")"
-    makeExistential vars c = "(exists " ++ (show vars) ++ " " ++ c ++ ")"
-
 
 comparisons = ["-", "/", "*", "<", ">", "=", ">=", "<="]
 
@@ -85,7 +22,8 @@ pddlLanguage = Token.LanguageDef {
     Token.identLetter = (alphaNum <|> oneOf "_-"),
     Token.opStart = oneOf [],
     Token.opLetter = oneOf [],
-    Token.reservedNames = ["and", "exists", "forall", "imply", "not", "when", -- Conjunctives
+    Token.reservedNames = [ "-", -- Types
+        "and", "exists", "forall", "imply", "not", "when", -- Conditions
         ":constants", ":constraints", "define", "domain", ":functions", ":predicates", ":requirements", ":types", -- Domain info
         ":action", ":effect", ":parameters", ":precondition" -- Action info
         ] ++ comparisons,
@@ -108,28 +46,47 @@ reserved  = Token.reserved lexer
 variable  = char '?' >> identifier
 -}
 
-
-parseTypedList lex el = many (do
-    item <- el
-    T.whiteSpace lex
+{-
+parseTyped :: ((:<:) f g, (:<:) (Typed (Expr f)) g) => Token.TokenParser a -> GenParser Char a (Expr f) -> GenParser Char a (Expr g)
+parseTyped lex itemP = do
+    item <- itemP
     itemType <- option Nothing (do
-        char '-'
-        T.whiteSpace lex
+        T.reserved lex "-"
         liftM Just $ T.identifier lex
         )
-    return (item, itemType)
-    )
+    let t = case itemType of
+            Just tname -> typed item tname
+            Nothing -> item
+    return t
 
+parseTypedList :: ((:<:) f g, (:<:) (Typed (Expr f)) g) => Token.TokenParser a -> GenParser Char a (Expr f) -> GenParser Char a ([Expr g])
+parseTypedList lex el = many (parseTyped lex el)
+-}
+
+parseTypedConst :: Token.TokenParser a -> GenParser Char a TypedConstExpr
+parseTypedConst lex = do
+    In (Const cstr) <- constParser lex
+    option (eConst cstr) (do
+        T.reserved lex "-"
+        tstr <- T.identifier lex
+        return $ typed (eConst cstr :: Expr Const) (eConst tstr :: Expr Const))
+
+
+parseTypedVar :: Token.TokenParser a -> GenParser Char a TypedVarExpr
+parseTypedVar lex = do
+    In (Var vstr) <- varParser lex
+    option (eVar vstr) (do
+        T.reserved lex "-"
+        tstr <- T.identifier lex
+        return $ typed (eVar vstr :: Expr Var) (eConst tstr :: Expr Const))
 
 -- | The domain parser takes a lexer, an domain item parser, and a domain sink
-domainParser :: (DomainInfoSink a b c) => Token.TokenParser a -> (GenParser Char a ()) -> (GenParser Char a ()) -> GenParser Char a a
--- domainParser :: Token.TokenParser String -> b
 domainParser lex domainInfoParser domainItemParser = T.whiteSpace lex >> T.parens lex (do
     T.reserved lex "define"
     T.parens lex $ (do
         T.reserved lex "domain"
         name <- T.identifier lex
-        updateState (setDomainName name)
+        updateState (\d -> d { domainName = name })
         )
     many $ T.parens lex (
         domainInfoParser
@@ -139,80 +96,101 @@ domainParser lex domainInfoParser domainItemParser = T.whiteSpace lex >> T.paren
     getState
     )
 
+
+constParser :: (:<:) Const t => Token.TokenParser a -> CharParser a (Expr t)
+constParser lex = T.identifier lex >>= (\x -> return $ eConst x)
+varParser:: (:<:) Var t => Token.TokenParser a -> (CharParser a (Expr t))
+varParser lex = char '?' >> T.identifier lex >>= (\x -> return $ eVar x)
+
+termParser :: Token.TokenParser a -> CharParser a (Expr (Const :+: Var))
 termParser lex = 
-    (char '?' >> T.identifier lex >>= (\x -> return $ makeVar x))
-    <|>
-    (T.identifier lex >>= (\x -> return $ makeConst x))
+    (varParser lex) <|> (constParser lex)
 
 predicateParser lex =
     (choice [T.reserved lex c >> return c | c <- comparisons])
     <|>
     T.identifier lex
- 
-atomicFormulaParser lex = do
-    name <- predicateParser lex
-    arguments <- many $ termParser lex
-    return $ makeAtomic name arguments
 
+atomicFormulaParser lex argParser = do
+    name <- predicateParser lex
+    arguments <- many $ argParser 
+    return $ eAtomic name arguments
+
+conditionParser :: (
+    (:<:) And f,
+    (:<:) Or f,
+    (:<:) Not f,
+    (:<:) (Exists TypedVarExpr) f,
+    (:<:) (ForAll TypedVarExpr) f,
+    (:<:) StdAtomicType f
+    ) => Token.TokenParser a -> CharParser a (Expr f)
 conditionParser lex = 
     (do
         try $ T.reserved lex "and"
         parts <- many $ T.parens lex $ conditionParser lex
-        return $ makeConjunct parts)
+        return $ eAnd parts)
     <|>
     (do
         try $ T.reserved lex "or"
         parts <- many $ T.parens lex $ conditionParser lex
-        return $ makeDisjunct parts)
+        return $ eOr parts)
     <|>
     (do
         try $ T.reserved lex "not"
         part <- T.parens lex $ conditionParser lex
-        return $ makeNegation part)
+        return $ eNot part)
     <|>
     (do
         try $ T.reserved lex "forall"
-        vars <- T.parens lex $ parseTypedList lex (char '?' >> T.identifier lex)
-        cond <- T.parens lex $ conditionParser lex
-        return $ makeUniversal vars cond)
+        vars <- T.parens lex $ many $ parseTypedVar lex
+        cond <- conditionParser lex
+        return $ eForAll vars cond)
     <|>
     (do
         try $ T.reserved lex "exists"
-        vars <- T.parens lex $ parseTypedList lex (char '?' >> T.identifier lex)
-        cond <- T.parens lex $ conditionParser lex
-        return $ makeExistential vars cond)
+        vars <- T.parens lex $ many $ parseTypedVar lex
+        cond <- conditionParser lex
+        return $ eExists vars cond)
     <|>
-    atomicFormulaParser lex
+    atomicFormulaParser lex (termParser lex)
+
+maybeParser lex p =
+    (do
+        try $ T.parens lex $ T.whiteSpace lex
+        return Nothing)
+    <|>
+    (do
+        result <- T.parens lex p
+        return $ Just result)
 
 
+--domainInfoParser :: 
+--    Token.TokenParser StandardDomain -> CharParser StandardDomain (Expr f) -> CharParser StandardDomain ()
 domainInfoParser lex condParser = (
     (do
         try $ T.reserved lex ":requirements"
         ids <- many (char ':' >> T.identifier lex)
-        updateState (setRequirements ids))
+        updateState (\d -> d { requirements = ids }))
     <|>
     (do
         try $ T.reserved lex ":types"
-        types <- parseTypedList lex $ T.identifier lex
-        updateState (setTypes types))
+        types <- many $ parseTypedConst lex
+        updateState (\d -> d { types = types} ))
     <|>
-    (do
-        try $ T.reserved lex ":constants"
-        constants <- parseTypedList lex (T.identifier lex)
-        updateState (setConstants constants))
-    <|>
+    --(do
+    --    try $ T.reserved lex ":constants"
+    --    constants <- parseTypedList lex (T.identifier lex)
+    --    updateState (\d -> d {constants = constants}))
+    -- <|>
     (do
         try $ T.reserved lex ":constraints"
         conGD <- condParser
-        updateState (setConstraints conGD))
+        return ())
     <|>
     (do
         try $ T.reserved lex ":predicates"
-        preds <- many $ T.parens lex (do
-            pred <- T.identifier lex
-            args <- parseTypedList lex $ (char '?' >> T.identifier lex)
-            return (pred, args))
-        updateState (setPredicates preds))
+        preds <- many $ T.parens lex (atomicFormulaParser lex (parseTypedVar lex))
+        updateState (\d -> d {predicates = preds}))
     )
 
 collect collector parser =
@@ -220,38 +198,30 @@ collect collector parser =
     <|>
     return collector
 
-actionInfoParser lex condParser action = 
-    (do
-        try $ T.reserved lex ":parameters"
-        parameters <- T.parens lex $ parseTypedList lex $ (char '?' >> T.identifier lex)
-        return $ setParameters parameters action)
-    <|>
-    (do
-        try $ T.reserved lex ":precondition"
-        precondition <- T.parens lex condParser
-        return $ setPrecondition precondition action)
-    <|>
-    (do
-        try $ T.reserved lex ":effect"
-        effect <- T.parens lex condParser
-        return $ setEffect effect action)
-
-
 actionParser lex condParser = do
     try $ T.reserved lex ":action"
     name <- T.identifier lex
-    action <- collect (newAction name) (actionInfoParser lex condParser)
-    updateState (addAction action)
+    T.reserved lex ":parameters"
+    params <- T.parens lex $ many $ parseTypedVar lex
+    T.reserved lex ":precondition"
+    precond <- maybeParser lex condParser
+    T.reserved lex ":effect"
+    effect <- T.parens lex condParser
+    let a = action name params precond effect
+    updateState (\d -> d { items = a : items d })
+    
 
 
 parseProblem = (T.parens lexer) eof
 
 
---standardParser :: (DomainInfoSink a b d, ActionInfoSink d b, ConditionFactory b c, TermFactory c)  => GenParser Char a a
-standardParser :: (DomainInfoSink a b c, ActionInfoSink c b, ConditionFactory b d, TermFactory d) => GenParser Char a a
+standardParser :: GenParser Char StandardDomain StandardDomain
 standardParser =
-    domainParser lexer (domainInfoParser lexer (conditionParser lexer)) (actionParser lexer (conditionParser lexer))
-
+    domainParser lexer 
+        (domainInfoParser lexer 
+            (conditionParser lexer :: CharParser StandardDomain GoalExpr)) 
+        (actionParser lexer 
+            (conditionParser lexer :: CharParser StandardDomain GoalExpr))
 
 
 runPrintingParser parser source input = do
@@ -260,7 +230,4 @@ runPrintingParser parser source input = do
             let msg = "Parse error at " ++ show err
             putStrLn msg
         Right x ->
-            x
-
-printingParse = runPrintingParser standardParser
-
+            print x

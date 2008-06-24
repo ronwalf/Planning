@@ -1,97 +1,97 @@
-module Planning.PDDL.Repair (
-repairDomain
-) where
+module Planning.PDDL.Repair
+where
 
 import Control.Monad
 import Data.Graph.Inductive
-import Data.Graph.Inductive.Query.MST
-import Data.Graph.Inductive.Query.SP
+--import Data.Graph.Inductive.Query.MST
+--import Data.Graph.Inductive.Query.SP
 import Data.List
 import qualified Data.Map as Map
 import Data.Maybe
+import Prelude hiding (and, const, not, or)
+import qualified Prelude
 
 import Planning.PDDL.Representation
 
-transformTL f = map (\ (s, t) -> (f s, t)) 
+--mkTypeTree :: [TypedConstExpr] -> (Gr String Int, [(Int, String)])
 
-mkTypeTree :: [(String, Maybe String)] -> (Gr String Int, [(Int, String)])
-mkTypeTree tl =
+class Functor f => TypeFlatten f where
+    typeFlatten :: f [Expr Const] -> [Expr Const]
+instance (TypeFlatten f , TypeFlatten g ) => TypeFlatten (f :+: g ) where 
+    typeFlatten (Inl x ) = typeFlatten x 
+    typeFlatten (Inr y ) = typeFlatten y 
+instance TypeFlatten Const where
+    typeFlatten (Const c) = [const c]
+instance TypeFlatten (Typed (Expr Const)) where
+    typeFlatten (Typed (In (Const c)) (In (Const t))) = [const c, const t]
+
+class Functor f => GetType a f where
+    getType :: f (Maybe (a, Expr Const)) -> Maybe ( a, Expr Const)
+instance (GetType a f, GetType a g) => GetType a (f :+: g) where
+    getType (Inl x) = getType x
+    getType (Inr y) = getType y
+instance GetType a (Typed a) where
+    getType (Typed x t) = Just (x, t)
+instance GetType a Const where
+    getType (Const c) = Nothing
+instance GetType a Var where
+    getType (Var v) = Nothing
+
+mkTypeGraph ::  (TypeFlatten f, GetType (Expr Const) f) => 
+    [Expr f] -> Gr (Expr Const) (Expr Const, Expr Const)
+mkTypeGraph tl =
     let
-        --edges = mapMaybe (\ (t1, mt2) -> if (isJust mt2) then Just (t1, fromJust mt2) else Nothing) tl
-        nodes = zip [0 ..] $ nub $ catMaybes $ concatMap (\ (t1, mt2) -> [Just t1, mt2]) tl
-        edges = [ (fst n1, fst n2) | n1 <- nodes, n2 <- nodes, (elem (snd n1, Just $ snd n2) tl) || (fst n1) == (fst n2)]
-        ledges = zipWith (\ (x,y) w -> (x,y,w)) edges $ repeat 1
+        nodes = zip [0 ..] $ nub $ concatMap (foldExpr typeFlatten) tl
+        edges = 
+            [ (i, i, (c, c)) | (i, c) <- nodes ] ++
+            [ (rlookup t1 nodes, rlookup t2 nodes, (t1, t2)) |
+            (t1, t2) <- mapMaybe (foldExpr getType) tl]
+        --tg = mkGraph nodes edges :: Gr (Expr Const) (Expr Const, Expr Const)
     in
-    (mkGraph nodes ledges, nodes)
-
-findTypeNum label nodes = 
-    fst $ fromJust $ find (\ (n, l) -> label == l) nodes
-
-findTypeStr num nodes =
-    fromJust $ lookup num nodes
-
-isSubType (tree, nodes) t1 t2 =
-    not $ null $ map (flip lookup $ nodes) $ sp (findTypeNum t1 nodes) (findTypeNum t2 nodes) tree
-
-isSuperType types = flip (isSubType types)
-
-predEquality (p1, vl1) (p2, vl2) = 
-    (p1 == p2) && (all similar $ zip vl1 vl2) 
+    mkGraph nodes edges
     where
-        similar ((_, Nothing), (_, _)) = True
-        similar ((_, _), (_, Nothing)) = True
-        similar ((_, t1), (_, t2)) = t1 == t2
+        rlookup i ((f,s) : l) = if ( i == s) then f else rlookup i l
+        --rlookup i = fst . fromJust . (find (\(f, s) -> i == s))
 
-findPreds typing (And cl) = concatMap (findPreds typing) cl
-findPreds typing (Atomic p tl) = [(p, map (\t -> (t, fromMaybe Nothing $ lookup t typing)) tl )]
-findPreds _ Empty = []
-findPreds typing (Exists vl c) = findPreds ((transformTL Var vl) ++ typing) c
-findPreds typing (ForAll vl c) = findPreds ((transformTL Var vl) ++ typing) c
-findPreds typing (Imply c1 c2) = (findPreds typing c1) ++ (findPreds typing c2)
-findPreds typing (Not c) = findPreds typing c
-findPreds typing (Or cl)  = concatMap (findPreds typing) cl
-findPreds typing (When c1 c2) = (findPreds typing c1) ++ (findPreds typing c2)
-
-
-findActionPreds consts a@(Action { parameters = pl}) =
-    let
-        typing = (transformTL Const consts) ++ (transformTL Var pl)
+--leastGeneralType :: (DynGraph gr, Eq a, Show a) => gr a (a, a) -> LNode a -> LNode a -> Maybe a
+leastGeneralType :: [TypedConstExpr] -> Expr Const -> Expr Const -> Maybe (Expr Const)
+leastGeneralType tl t1 t2 =
+    let 
+        tg = mkTypeGraph tl
+        consts = concatMap (foldExpr typeFlatten) tl
+        n1 = nodeLookup tg t1
+        n2 = nodeLookup tg t2
+        LP shortest = lesp n1 n2 $ undir tg
+        --rshortest = foldl (\ l (e, (i, o)) -> (e, (o, i)) : l) [] $ tail shortest
+        rshortest = reverse $ tail shortest
+        leftTop = foldl followOut t1 $ tail shortest
+        rightTop = foldl followOut t2 rshortest
     in
-    (findPreds typing $ effect a) ++ (findPreds typing $ precondition a)
+    if (t1 == t2) then Just t1 else
+    if (Prelude.not (t1 `elem` consts && t2 `elem` consts)) then Nothing else
+    if shortest == [] then Nothing else
+    if leftTop == rightTop then
+        Just rightTop
+    else
+        Nothing
+        --Just $ const (show leftTop ++ "-" ++ show rightTop)
+        --Just $ const $ show (tail shortest, rshortest)
+    where
+        followOut current (_, (prev, next))
+            | prev == current = next
+            | otherwise = current
+        nodeLookup tg t =
+            fst $ fromJust $ find (\(n,s) -> s==t) $ labNodes tg
 
---findActionPreds _ _ = []
-
-
-mostGeneralType types tl =
-    foldl supplant (if (null tl) then Nothing else head tl) tl
-    where 
-        supplant Nothing _ = Nothing
-        supplant _ Nothing = Nothing
-        supplant t1 t2 = 
-            if (isSubType types (fromJust t1) (fromJust t2)) then t2
-            else if (isSubType types (fromJust t2) (fromJust t1)) then t1
-            else Nothing
-
-repairPredicate types (p, vls) = do
-    let sizes = nub $ map length vls
-    when (length sizes /= 1) (fail $ "Predicate " ++ p ++ " has multiple arities: " ++ show sizes)
-    let byArgument = transpose vls
-    let argNames = if (null vls) then [] else (map (termName . fst) $ head vls)
-    let argTypes = map (mostGeneralType types) $ map (map snd) byArgument
-    return (p, zip argNames argTypes)
-    
-
-notKnownFilter = filter notKnown where
-    notKnown (p, args)
-        | p == "=" && length args == 2 = False
-        | otherwise = True
+findTreeViolators tg =
+    [(n1, fromJust $ lab tg i2) | (i1, n1) <- labNodes tg, (outdeg tg i1) > 1, (i2, _) <- lsuc tg i1]
 
 
-repairDomain (Domain (info, items)) = do
-    
-    let allPreds = reverse $ nubBy predEquality $ (map (\(p, vl) -> (p, transformTL Var vl)) $ predicates info) ++ concatMap (findActionPreds $ constants info) items
-    let nameMap = foldr (\ (p, vl) -> Map.insertWith (++) p [vl]) Map.empty allPreds 
-    let typeTree = mkTypeTree $ types info
-    preds <- liftM (notKnownFilter) $ mapM (repairPredicate typeTree) $ Map.toList nameMap
-    
-    return $ Domain (info { predicates = preds }, items)
+repairDomain domain = do
+    let tg = mkTypeGraph $ types domain
+    when (hasLoop tg) $ fail "Type loop present"
+    let violators = findTreeViolators tg
+    when (length violators > 0) $ fail $ "Supertypes violate tree property: " ++ (show violators)
+    return domain
+
+
