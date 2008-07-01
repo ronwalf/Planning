@@ -25,6 +25,7 @@ pddlLanguage = Token.LanguageDef {
     Token.reservedNames = [ "-", -- Types
         "and", "exists", "forall", "imply", "not", "when", -- Conditions
         ":constants", ":constraints", "define", "domain", ":functions", ":predicates", ":requirements", ":types", -- Domain info
+        ":objects", "problem", ":domain",-- Problem info
         ":action", ":effect", ":parameters", ":precondition" -- Action info
         ] ++ comparisons,
     Token.reservedOpNames = [],
@@ -96,6 +97,15 @@ domainParser lex domainInfoParser domainItemParser = T.whiteSpace lex >> T.paren
     getState
     )
 
+problemParser lex probInfoParser = T.whiteSpace lex >> T.parens lex (do
+    T.reserved lex "define"
+    T.parens lex $ (do
+        T.reserved lex "problem"
+        name <- T.identifier lex
+        updateState (\p -> p { problemName = name })
+        )
+    many $ T.parens lex probInfoParser
+    getState)
 
 constParser :: (:<:) Const t => Token.TokenParser a -> CharParser a (Expr t)
 constParser lex = T.identifier lex >>= (\x -> return $ eConst x)
@@ -115,6 +125,13 @@ atomicFormulaParser lex argParser = do
     name <- predicateParser lex
     arguments <- many $ argParser 
     return $ eAtomic name arguments
+
+stdStateParser :: forall st .
+    T.TokenParser st -> CharParser st (Expr (Atomic (Expr Const)))
+stdStateParser lex = 
+    T.parens lex $ 
+    atomicFormulaParser lex $
+    (constParser lex :: CharParser st (Expr Const))
 
 conditionParser :: (
     (:<:) And f,
@@ -166,7 +183,7 @@ maybeParser lex p =
 
 --domainInfoParser :: 
 --    Token.TokenParser StandardDomain -> CharParser StandardDomain (Expr f) -> CharParser StandardDomain ()
-domainInfoParser lex condParser = (
+domainInfoParser lex condParser =
     (do
         try $ T.reserved lex ":requirements"
         ids <- many (char ':' >> T.identifier lex)
@@ -190,8 +207,43 @@ domainInfoParser lex condParser = (
     (do
         try $ T.reserved lex ":predicates"
         preds <- many $ T.parens lex (atomicFormulaParser lex (parseTypedVar lex))
-        updateState (\d -> d {predicates = preds}))
+        updateState (\d -> d {predicates = preds})
     )
+
+problemInfoParser lex stateParser goalParser constraintParser =
+    (do
+        try $ T.reserved lex ":domain"
+        name <- T.identifier lex
+        updateState (\p -> p { problemDomain = name }))
+    <|>
+    (do
+        try $ T.reserved lex ":requirements"
+        ids <- many (char ':' >> T.identifier lex)
+        updateState (\p -> p { problemRequirements = ids }))
+    <|>
+    (do
+        try $ T.reserved lex ":objects"
+        objs <- many $ parseTypedConst lex
+        updateState (\d -> d { objects = objs }))
+    <|>
+    (do
+        try $ T.reserved lex ":init"
+        model <- many stateParser
+        updateState (\p -> p { initial = model }))
+    <|>
+    (do
+        try $ T.reserved lex ":goal"
+        gd <- goalParser
+        updateState (\p -> p { goal = gd }))
+    <|>
+    (do
+        try $ T.reserved lex ":constraints"
+        cd <- constraintParser
+        updateState (\p -> p { constraints = cd }))
+
+
+
+
 
 collect collector parser =
     (parser collector >>= (\x -> collect x parser ))
@@ -223,6 +275,15 @@ standardParser =
         (actionParser lexer 
             (conditionParser lexer :: CharParser StandardDomain GoalExpr))
 
+
+stdProblemParser :: GenParser Char StandardProblem StandardProblem
+stdProblemParser =
+    problemParser lexer $
+    problemInfoParser lexer
+    (stdStateParser lexer :: CharParser StandardProblem (Expr (Atomic (Expr Const))))
+    (maybeParser lexer $ conditionParser lexer)
+    (maybeParser lexer $ conditionParser lexer)
+        
 
 runPrintingParser parser source input = do
     case (runParser (parser) (print "") source input) of

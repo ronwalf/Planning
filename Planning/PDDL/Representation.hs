@@ -7,6 +7,9 @@ module Planning.PDDL.Representation (
     emptyDomain, StandardDomain,
     Action(..), action,
 
+    Problem(..),
+    emptyProblem, StandardProblem,
+
     Typed(..), typed,
     TypedConst,
     TypedConstExpr,
@@ -129,6 +132,15 @@ instance PDDLDoc Or where
     pddlDoc (Or el) = parens $ sep $ text "or" : [pddlDoc e | In e <- el]
 
 
+docNonEmpty :: PDDLDoc f => String -> [Expr f] -> Doc
+docNonEmpty name ol =
+    if (null ol) then empty else parens $ sep $
+        text name :
+        [ pddlDoc x | In x <- ol ]
+
+docMaybe :: PDDLDoc f => String -> Maybe (Expr f) -> Doc
+docMaybe name Nothing = empty
+docMaybe name (Just (In x)) = parens $ sep $ [ text name, pddlDoc x ]
 ------------------------------
 -- Domain Description
 ------------------------------
@@ -187,4 +199,39 @@ instance PDDLDoc c => PDDLDoc (Action (Expr c)) where
 action name params precond effect= inject (Action name params precond effect)
 
 
+-------------------------------
+-- Problem Description
+-------------------------------
+data Problem a b c = Problem {
+    problemName :: String,
+    problemDomain :: String,
+    problemRequirements :: [String],
+    objects :: [TypedConstExpr],
+    initial :: [a],
+    goal :: Maybe b,
+    constraints :: Maybe c
+    }
+
+emptyProblem = Problem {
+    problemName = "empty",
+    problemDomain = "emptyDomain",
+    problemRequirements = [],
+    objects = [],
+    initial = [],
+    goal = Nothing,
+    constraints = Nothing
+}
+
+type StandardProblem = Problem (Expr (Atomic (Expr Const))) GoalExpr GoalExpr
+
+instance (PDDLDoc a, PDDLDoc b, PDDLDoc c) => Show (Problem (Expr a) (Expr b) (Expr c)) where
+    show problem = show $ parens $ sep $
+        text "define" :
+        (parens $ text "problem" <+> (text $ problemName problem)) :
+        (parens $ text ":domain" <+> (text $ problemDomain problem)) :
+        (parens $ sep $ text ":requirements" : map text (problemRequirements problem)) :
+        docNonEmpty ":objects" (objects problem) :
+        docNonEmpty ":initial" (initial problem) :
+        docMaybe ":goal" (goal problem) :
+        docMaybe ":constraints" (constraints problem) : []
 
