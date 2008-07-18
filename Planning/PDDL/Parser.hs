@@ -1,7 +1,7 @@
-{-# OPTIONS -fallow-overlapping-instances #-}
-{-# OPTIONS -XFlexibleContexts #-}
-{-# OPTIONS -XPatternSignatures #-}
-{-# OPTIONS -fglasgow-exts #-}
+{-# OPTIONS 
+ -fglasgow-exts
+ -fallow-overlapping-instances 
+ #-}
 module Planning.PDDL.Parser where
 
 import Control.Monad
@@ -70,7 +70,7 @@ parseTypedConst lex = do
     option (eConst cstr) (do
         T.reserved lex "-"
         tstr <- T.identifier lex
-        return $ typed (eConst cstr :: Expr Const) (eConst tstr :: Expr Const))
+        return $ eTyped (eConst cstr :: Expr Const) (eConst tstr :: Expr Const))
 
 
 parseTypedVar :: Token.TokenParser a -> GenParser Char a TypedVarExpr
@@ -79,7 +79,7 @@ parseTypedVar lex = do
     option (eVar vstr) (do
         T.reserved lex "-"
         tstr <- T.identifier lex
-        return $ typed (eVar vstr :: Expr Var) (eConst tstr :: Expr Const))
+        return $ eTyped (eVar vstr :: Expr Var) (eConst tstr :: Expr Const))
 
 -- | The domain parser takes a lexer, an domain item parser, and a domain sink
 domainParser lex domainInfoParser domainItemParser = T.whiteSpace lex >> T.parens lex (do
@@ -251,17 +251,33 @@ collect collector parser =
     return collector
 
 actionParser lex condParser = do
+    let infoParser = actionInfoParser lex condParser
     try $ T.reserved lex ":action"
     name <- T.identifier lex
-    T.reserved lex ":parameters"
+    updates <- many infoParser
+    let action = foldl (\ a t -> t a) (setName name defaultAction) updates
+    updateState (\d -> d { items = domainItem action : items d })
+
+--    Token.TokenParser a -> CharParser a f -> CharParser a (Record r -> Record r)
+actionInfoParser lex condParser =
+    paramParser lex
+    <|>
+    precondParser lex condParser
+    <|>
+    (do
+        try $ T.reserved lex ":effect"
+        effect <- maybeParser lex condParser
+        return $ setEffect effect)
+
+paramParser lex = do
+    try $ T.reserved lex ":parameters"
     params <- T.parens lex $ many $ parseTypedVar lex
-    T.reserved lex ":precondition"
+    return $ setParameters params
+
+precondParser lex condParser = do
+    try $ T.reserved lex ":precondition"
     precond <- maybeParser lex condParser
-    T.reserved lex ":effect"
-    effect <- T.parens lex condParser
-    let a = action name params precond effect
-    updateState (\d -> d { items = a : items d })
-    
+    return $ setPrecondition precond
 
 
 parseProblem = (T.parens lexer) eof
@@ -269,11 +285,10 @@ parseProblem = (T.parens lexer) eof
 
 standardParser :: GenParser Char StandardDomain StandardDomain
 standardParser =
+    let condParser = conditionParser lexer :: CharParser StandardDomain GoalExpr in
     domainParser lexer 
-        (domainInfoParser lexer 
-            (conditionParser lexer :: CharParser StandardDomain GoalExpr)) 
-        (actionParser lexer 
-            (conditionParser lexer :: CharParser StandardDomain GoalExpr))
+        (domainInfoParser lexer condParser)
+        (actionParser lexer condParser)
 
 
 stdProblemParser :: GenParser Char StandardProblem StandardProblem
