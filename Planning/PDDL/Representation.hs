@@ -16,7 +16,7 @@ module Planning.PDDL.Representation (
 
     StdAtomicType,
 
-    GoalExpr,
+    GoalExpr, TermExpr,
 
     PDDLDoc(..),
     pddlExprDoc, docMaybe
