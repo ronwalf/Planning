@@ -232,9 +232,10 @@ instance (PDDLDoc a, PDDLDoc b, PDDLDoc c) => Show (Problem (Expr a) (Expr b) (E
         text "define" :
         (parens $ text "problem" <+> (text $ problemName problem)) :
         (parens $ text ":domain" <+> (text $ problemDomain problem)) :
-        (parens $ sep $ text ":requirements" : map text (problemRequirements problem)) :
+        (parens $ sep $ text ":requirements" : map (text . (':':)) (problemRequirements problem)) :
         docNonEmpty ":objects" (objects problem) :
-        docNonEmpty ":initial" (initial problem) :
-        docMaybe ":goal" (goal problem) :
+        docNonEmpty ":init" (initial problem) :
+        maybe empty (\x -> parens $ sep [text ":goal", pddlExprDoc x]) 
+            (goal problem) :
         docMaybe ":constraints" (constraints problem) : []
 
