@@ -24,7 +24,8 @@ module Planning.Expressions (
     Untypeable, removeType
 ) where
 
-import Data.Generics hiding ((:+:), Inl, Inr)
+--import Data.Generics hiding ((:+:), Inl, Inr)
+import Data.Generics (Data, Typeable, Typeable1, Typeable2)
 
 import Planning.Wouter
 

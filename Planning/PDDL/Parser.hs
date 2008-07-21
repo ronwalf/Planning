@@ -264,10 +264,12 @@ actionInfoParser lex condParser =
     <|>
     precondParser lex condParser
     <|>
-    (do
-        try $ T.reserved lex ":effect"
-        effect <- maybeParser lex condParser
-        return $ setEffect effect)
+    effectParser lex condParser
+
+effectParser lex condParser = do
+    try $ T.reserved lex ":effect"
+    effect <- maybeParser lex condParser
+    return $ setEffect effect
 
 paramParser lex = do
     try $ T.reserved lex ":parameters"
