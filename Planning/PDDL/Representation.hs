@@ -1,22 +1,20 @@
 {-# OPTIONS 
  -fglasgow-exts
+ -fallow-overlapping-instances
  -fallow-undecidable-instances #-}
 module Planning.PDDL.Representation (
     module Planning.Expressions,
     module Planning.Records,
 
     Domain(..),
-    emptyDomain, StandardDomain,
+    emptyDomain, 
+    
     DomainItem(..), domainItem,
 
-    Action(..), defaultAction, StandardAction,
+    Action(..), defaultAction, 
 
     Problem(..),
-    emptyProblem, StandardProblem,
-
-    StdAtomicType,
-
-    GoalExpr, TermExpr,
+    emptyProblem, 
 
     PDDLDoc(..),
     pddlExprDoc, docMaybe
@@ -28,23 +26,6 @@ import Text.PrettyPrint
 
 import Planning.Expressions
 import Planning.Records
-import qualified Planning.Records as R
-
------------------------------
--- Extra Expressions
------------------------------
-
-type TermExpr = Expr (Const :+: Var)
-deriving instance Data TermExpr
-
-type StdAtomicType = Atomic (Expr (Const :+: Var))
---deriving instance Data (Expr StdAtomicType)
-
-type GoalExpr = Expr
-    (And :+: Imply :+: Not :+: Or :+:
-     (Exists TypedVarExpr) :+: (ForAll TypedVarExpr) :+:
-     StdAtomicType)
-deriving instance Data GoalExpr
 
 
 -----------------------------
@@ -67,6 +48,10 @@ instance PDDLDoc Var where
 
 instance PDDLDoc Const where
     pddlDoc (Const name) = text name
+
+instance PDDLDoc Function where
+    pddlDoc (Function name args) = parens $ sep $
+        text name : map pddlExprDoc args
 
 instance PDDLDoc t => PDDLDoc (Typed (Expr t)) where
     pddlDoc (Typed (In c) (In t)) =
@@ -108,6 +93,91 @@ instance PDDLDoc Or where
     pddlDoc (Or el) = parens $ sep $ text "or" : [pddlDoc e | In e <- el]
 
 
+instance PDDLDoc p => PDDLDoc (When (Expr p)) where
+    pddlDoc (When p e) = parens $ sep [
+        text "when",
+        pddlExprDoc p,
+        pddlExprDoc e]
+
+instance PDDLDoc Preference where
+    pddlDoc (Preference n p) = parens $ sep [
+        text "preference",
+        maybe empty text n,
+        pddlExprDoc p]
+
+instance PDDLDoc Start where
+    pddlDoc Start = text "start"
+
+instance PDDLDoc End where
+    pddlDoc End = text "end"
+
+instance PDDLDoc t => PDDLDoc (At (Expr t)) where
+    pddlDoc (At t e) = parens $ sep [
+        text "at",
+        pddlExprDoc t,
+        pddlExprDoc e]
+
+instance PDDLDoc t => PDDLDoc (Over (Expr t)) where
+    pddlDoc (Over t e) = parens $ sep [
+        text "over",
+        pddlExprDoc t,
+        pddlExprDoc e]
+
+instance PDDLDoc Always where
+    pddlDoc (Always e) = parens $ sep [
+        text "always",
+        pddlExprDoc e]
+
+instance PDDLDoc Sometime where
+    pddlDoc (Sometime e) = parens $ sep [
+        text "sometime",
+        pddlExprDoc e]
+
+instance PDDLDoc SometimeAfter where
+    pddlDoc (SometimeAfter e1 e2) = parens $ sep [
+        text "sometime-after",
+        pddlExprDoc e1,
+        pddlExprDoc e2]
+
+instance PDDLDoc SometimeBefore where
+    pddlDoc (SometimeBefore e1 e2) = parens $ sep [
+        text "sometime-before",
+        pddlExprDoc e1,
+        pddlExprDoc e2]
+
+instance PDDLDoc Within where
+    pddlDoc (Within n e) = parens $ sep [
+        text "within",
+        double n,
+        pddlExprDoc e]
+
+instance PDDLDoc AtMostOnce where
+    pddlDoc (AtMostOnce e) = parens $ sep [
+        text "at-most-once",
+        pddlExprDoc e]
+
+instance PDDLDoc AlwaysWithin where
+    pddlDoc (AlwaysWithin n e1 e2) = parens $ sep [
+        text "always-within",
+        double n,
+        pddlExprDoc e1,
+        pddlExprDoc e2]
+
+instance PDDLDoc HoldDuring where
+    pddlDoc (HoldDuring n1 n2 e) = parens $ sep [
+        text "hold-during",
+        double n1,
+        double n2,
+        pddlExprDoc e]
+
+instance PDDLDoc HoldAfter where
+    pddlDoc (HoldAfter n e) = parens $ sep [
+        text "hold-after",
+        double n,
+        pddlExprDoc e]
+
+
+
 docNonEmpty :: PDDLDoc f => String -> [Expr f] -> Doc
 docNonEmpty name ol =
     if (null ol) then empty else parens $ sep $
@@ -121,6 +191,7 @@ docMaybe name (Just (In x)) = sep $ [ text name, pddlDoc x ]
 -- Domain Description
 ------------------------------
 
+{-
 data Domain a = Domain {
     domainName :: String,
     requirements :: [String],
@@ -130,20 +201,6 @@ data Domain a = Domain {
     predicates :: [ Expr (Atomic TypedVarExpr) ],
     items :: [a]
 } deriving (Eq)
-
-{-
-type StandardDomain =
-    Name :@:
-    Requirements :@:
-    Types :@:
-    (Constants TypedConstExpr) :@:
-    (Predicates TypedVarExpr) :@:
-    (Items (Action (GoalExpr)))
--}
-
---type StandardDomain = Domain (Expr (Action (GoalExpr)))
-type StandardDomain = Domain (Expr (DomainItem StandardAction))
-type StandardAction = Action GoalExpr GoalExpr
 
 emptyDomain = Domain "empty" [] [] [] [] []
 
@@ -158,6 +215,50 @@ instance (PDDLDoc a) => Show (Domain (Expr a)) where
             [pddlDoc p | (In p) <- predicates domain]) :
         space :
         intersperse space [pddlDoc x | In x <- items domain]
+-}
+
+data Domain a b = Domain 
+    Name
+    Requirements
+    (Types TypedConstExpr)
+    (Constants TypedConstExpr)
+    (Predicates (Expr (Atomic TypedVarExpr)))
+    (Functions TypedFuncExpr)
+    (Constraints a)
+    (Items b)
+    deriving (Data, Eq, Typeable)
+
+instance (Data a, Data b) => HasName (Domain a b)
+instance (Data a, Data b) => HasRequirements (Domain a b)
+instance (Data a, Data b) => HasTypes TypedConstExpr (Domain a b)
+instance (Data a, Data b) => HasConstants TypedConstExpr (Domain a b)
+instance (Data a, Data b) => HasPredicates (Expr (Atomic TypedVarExpr)) (Domain a b)
+instance (Data a, Data b) => HasFunctions TypedFuncExpr (Domain a b)
+instance (Data a, Data b) => HasConstraints a (Domain a b)
+instance (Data a, Data b) => HasItems b (Domain a b)
+
+instance (Data (Expr a), Data (Expr b), PDDLDoc a, PDDLDoc b) => 
+    Show (Domain (Expr a) (Expr b)) where
+    show domain = show $ parens $ ($$) (text "define") $ vcat $
+        parens (text "domain" <+> text (getName domain)) :
+         -- Requirement strings are prefixed with ':'
+        parens (sep $ map (text . (':':)) $ "requirements" : getRequirements domain) :
+        parens (sep $ (text ":types") :
+            [pddlDoc t | (In t) <- getTypes domain]) :
+        parens (sep $ (text ":predicates") :
+            [pddlDoc p | (In p) <- getPredicates domain]) :
+        space :
+        intersperse space [pddlDoc x | In x <- getItems domain]
+
+emptyDomain = Domain 
+    (Name "empty") 
+    (Requirements []) 
+    (Types [])
+    (Constants [])
+    (Predicates [])
+    (Functions [])
+    (Constraints Nothing)
+    (Items [])
 
 data DomainItem c e = DomainItem c deriving (Data, Eq)
 deriving instance Typeable2 DomainItem
@@ -169,6 +270,8 @@ instance (Eq c) => FuncEq (DomainItem c) where
 instance PDDLDoc i => PDDLDoc (DomainItem (Expr i)) where
     pddlDoc (DomainItem (In i)) = pddlDoc i
 domainItem i = inject $ DomainItem i
+
+
 ------------------------------
 -- Action Description
 ------------------------------
@@ -205,6 +308,7 @@ instance (Data (Expr p), Data (Expr e), PDDLDoc p, PDDLDoc e) =>
 -------------------------------
 -- Problem Description
 -------------------------------
+{-
 data Problem a b c = Problem {
     problemName :: String,
     problemDomain :: String,
@@ -225,8 +329,6 @@ emptyProblem = Problem {
     constraints = Nothing
 }
 
-type StandardProblem = Problem (Expr (Atomic (Expr Const))) GoalExpr GoalExpr
-
 instance (PDDLDoc a, PDDLDoc b, PDDLDoc c) => Show (Problem (Expr a) (Expr b) (Expr c)) where
     show problem = show $ parens $ sep $
         text "define" :
@@ -239,3 +341,31 @@ instance (PDDLDoc a, PDDLDoc b, PDDLDoc c) => Show (Problem (Expr a) (Expr b) (E
             (goal problem) :
         docMaybe ":constraints" (constraints problem) : []
 
+-}
+
+data Problem a b c = Problem
+    Name
+    DomainName
+    Requirements
+    (Constants TypedConstExpr)
+    (Initial a)
+    (Goal b)
+    (Constraints c)
+    deriving (Data, Typeable, Eq)
+
+instance (Data a, Data b, Data c) => HasName (Problem a b c)
+instance (Data a, Data b, Data c) => HasDomainName (Problem a b c)
+instance (Data a, Data b, Data c) => HasRequirements (Problem a b c)
+instance (Data a, Data b, Data c) => HasConstants TypedConstExpr (Problem a b c)
+instance (Data a, Data b, Data c) => HasInitial a (Problem a b c)
+instance (Data a, Data b, Data c) => HasGoal b (Problem a b c)
+instance (Data a, Data b, Data c) => HasConstraints c (Problem a b c)
+
+emptyProblem = Problem
+    (Name "empty")
+    (DomainName "empty")
+    (Requirements [])
+    (Constants [])
+    (Initial [])
+    (Goal Nothing)
+    (Constraints Nothing)

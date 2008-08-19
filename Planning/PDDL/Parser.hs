@@ -87,7 +87,7 @@ domainParser lex domainInfoParser domainItemParser = T.whiteSpace lex >> T.paren
     T.parens lex $ (do
         T.reserved lex "domain"
         name <- T.identifier lex
-        updateState (\d -> d { domainName = name })
+        updateState (setName name)
         )
     many $ T.parens lex (
         domainInfoParser
@@ -102,74 +102,132 @@ problemParser lex probInfoParser = T.whiteSpace lex >> T.parens lex (do
     T.parens lex $ (do
         T.reserved lex "problem"
         name <- T.identifier lex
-        updateState (\p -> p { problemName = name })
+        updateState (setName name)
         )
     many $ T.parens lex probInfoParser
     getState)
 
-constParser :: (:<:) Const t => Token.TokenParser a -> CharParser a (Expr t)
+constParser :: (:<:) Const t => T.TokenParser a -> CharParser a (Expr t)
 constParser lex = T.identifier lex >>= (\x -> return $ eConst x)
-varParser:: (:<:) Var t => Token.TokenParser a -> (CharParser a (Expr t))
+
+varParser :: (:<:) Var t => T.TokenParser a -> CharParser a (Expr t)
 varParser lex = char '?' >> T.identifier lex >>= (\x -> return $ eVar x)
 
-termParser :: Token.TokenParser a -> CharParser a (Expr (Const :+: Var))
-termParser lex = 
-    (varParser lex) <|> (constParser lex)
+functionParser :: (:<:) Function t => 
+    T.TokenParser a -> CharParser a (Expr t) -> CharParser a (Expr t)
+functionParser lex tp = T.parens lex $ do
+    name <- T.identifier lex
+    args <- many tp
+    return $ eFunc name args
+
+--termParser :: Token.TokenParser a -> CharParser a TermExpr
+--termParser lex = 
+--    (varParser lex) <|> (constParser lex) <|> (functionParser lex $ termParser lex)
 
 predicateParser lex =
     (choice [T.reserved lex c >> return c | c <- comparisons])
     <|>
     T.identifier lex
 
-atomicFormulaParser lex argParser = do
-    name <- predicateParser lex
-    arguments <- many $ argParser 
-    return $ eAtomic name arguments
-
-stdStateParser :: forall st .
-    T.TokenParser st -> CharParser st (Expr (Atomic (Expr Const)))
-stdStateParser lex = 
+stdStateParser lex termP = 
     T.parens lex $ 
-    atomicFormulaParser lex $
-    (constParser lex :: CharParser st (Expr Const))
+    atomicParser lex termP
 
-conditionParser :: (
+
+conditionParser :: forall a p f. (
     (:<:) And f,
     (:<:) Or f,
     (:<:) Not f,
     (:<:) (Exists TypedVarExpr) f,
     (:<:) (ForAll TypedVarExpr) f,
-    (:<:) StdAtomicType f
-    ) => Token.TokenParser a -> CharParser a (Expr f)
-conditionParser lex = 
+    (:<:) (Atomic (Expr p)) f,
+    (:<:) Var p,
+    (:<:) Const p,
+    (:<:) Function p
+    ) => Token.TokenParser a -> CharParser a (Expr p) -> CharParser a (Expr f)
+conditionParser lex termP = 
+    --(atomicFormulaParser lex (termParser lex :: CharParser a (Expr p)) :: CharParser a (Expr f))
+    atomicParser lex termP
+{-
     (do
         try $ T.reserved lex "and"
-        parts <- many $ T.parens lex $ conditionParser lex
+        parts <- many $ T.parens lex $ (conditionParser lex :: CharParser a (Expr f))
         return $ eAnd parts)
     <|>
     (do
         try $ T.reserved lex "or"
-        parts <- many $ T.parens lex $ conditionParser lex
+        parts <- many $ T.parens lex $ (conditionParser lex :: CharParser a (Expr f))
         return $ eOr parts)
     <|>
     (do
         try $ T.reserved lex "not"
-        part <- T.parens lex $ conditionParser lex
+        part <- T.parens lex $ (conditionParser lex :: CharParser a (Expr f))
         return $ eNot part)
     <|>
     (do
         try $ T.reserved lex "forall"
         vars <- T.parens lex $ many $ parseTypedVar lex
-        cond <- conditionParser lex
-        return $ eForAll vars cond)
+        cond <- conditionParser lex :: CharParser a (Expr f)
+        return $ (eForAll vars cond :: Expr f))
     <|>
     (do
         try $ T.reserved lex "exists"
         vars <- T.parens lex $ many $ parseTypedVar lex
-        cond <- conditionParser lex
+        cond <- (conditionParser lex :: CharParser a (Expr f))
         return $ eExists vars cond)
     <|>
-    atomicFormulaParser lex (termParser lex)
+    (atomicFormulaParser lex (termParser lex :: CharParser a (Expr p)) :: CharParser a (Expr f))
+-}
+
+atomicParser lex termP = do
+    name <- predicateParser lex
+    arguments <- many $ termP
+    return $ eAtomic name arguments
+
+andParser lex exprP = do
+    try $ T.reserved lex "and"
+    parts <- many $ T.parens lex exprP
+    return $ eAnd parts
+
+orParser lex exprP = do
+    try $ T.reserved lex "or"
+    parts <- many $ T.parens lex exprP
+    return $ eOr parts
+
+notParser lex exprP = do
+    try $ T.reserved lex "not"
+    part <- T.parens lex exprP
+    return $ eNot part
+
+implyParser lex exprP = do
+    try $ T.reserved lex "imply"
+    cond <- T.parens lex exprP
+    res <- T.parens lex exprP
+    return $ eImply cond res
+
+whenParser lex condP exprP = do
+    try $ T.reserved lex "when"
+    cond <- T.parens lex condP
+    eff <- T.parens lex exprP
+    return $ eWhen cond eff
+
+forallParser lex exprP = do
+    try $ T.reserved lex "forall"
+    vars <- T.parens lex $ many $ parseTypedVar lex
+    cond <- T.parens lex exprP
+    return $ eForAll vars cond
+
+existsParser lex exprP = do
+    try $ T.reserved lex "exists"
+    vars <- T.parens lex $ many $ parseTypedVar lex
+    cond <- T.parens lex exprP
+    return $ eExists vars cond
+
+preferenceParser lex exprP = do
+    try $ T.reserved lex "preference"
+    name <- optionMaybe (T.identifier lex)
+    exp <- T.parens lex exprP
+    return $ ePreference name exp
 
 maybeParser lex p =
     (do
@@ -187,59 +245,59 @@ domainInfoParser lex condParser =
     (do
         try $ T.reserved lex ":requirements"
         ids <- many (char ':' >> T.identifier lex)
-        updateState (\d -> d { requirements = ids }))
+        updateState (setRequirements ids))
     <|>
     (do
         try $ T.reserved lex ":types"
         types <- many $ parseTypedConst lex
-        updateState (\d -> d { types = types} ))
+        updateState (setTypes types))
     <|>
-    --(do
-    --    try $ T.reserved lex ":constants"
-    --    constants <- parseTypedList lex (T.identifier lex)
-    --    updateState (\d -> d {constants = constants}))
-    -- <|>
+    (do
+        try $ T.reserved lex ":constants"
+        constants <- many $ parseTypedConst lex 
+        updateState (setConstants constants))
+     <|>
     (do
         try $ T.reserved lex ":constraints"
-        conGD <- condParser
-        return ())
+        conGD <- maybeParser lex condParser
+        updateState (setConstraints conGD))
     <|>
     (do
         try $ T.reserved lex ":predicates"
-        preds <- many $ T.parens lex (atomicFormulaParser lex (parseTypedVar lex))
-        updateState (\d -> d {predicates = preds})
+        preds <- many $ T.parens lex (atomicParser lex (parseTypedVar lex))
+        updateState (setPredicates preds)
     )
 
 problemInfoParser lex stateParser goalParser constraintParser =
     (do
         try $ T.reserved lex ":domain"
         name <- T.identifier lex
-        updateState (\p -> p { problemDomain = name }))
+        updateState (setDomainName name))
     <|>
     (do
         try $ T.reserved lex ":requirements"
         ids <- many (char ':' >> T.identifier lex)
-        updateState (\p -> p { problemRequirements = ids }))
+        updateState (setRequirements ids))
     <|>
     (do
         try $ T.reserved lex ":objects"
         objs <- many $ parseTypedConst lex
-        updateState (\d -> d { objects = objs }))
+        updateState (setConstants objs))
     <|>
     (do
         try $ T.reserved lex ":init"
         model <- many stateParser
-        updateState (\p -> p { initial = model }))
+        updateState (setInitial model))
     <|>
     (do
         try $ T.reserved lex ":goal"
-        gd <- goalParser
-        updateState (\p -> p { goal = gd }))
+        gd <- maybeParser lex goalParser
+        updateState (setGoal gd))
     <|>
     (do
         try $ T.reserved lex ":constraints"
-        cd <- constraintParser
-        updateState (\p -> p { constraints = cd }))
+        cd <- maybeParser lex constraintParser
+        updateState (setConstraints cd))
 
 
 
@@ -250,21 +308,21 @@ collect collector parser =
     <|>
     return collector
 
-actionParser lex condParser = do
-    let infoParser = actionInfoParser lex condParser
+actionParser lex precondP effectP = do
+    let infoParser = actionInfoParser lex precondP effectP
     try $ T.reserved lex ":action"
     name <- T.identifier lex
     updates <- many infoParser
     let action = foldl (\ a t -> t a) (setName name defaultAction) updates
-    updateState (\d -> d { items = domainItem action : items d })
+    updateState (\d -> setItems (domainItem action : getItems d) d)
 
 --    Token.TokenParser a -> CharParser a f -> CharParser a (Record r -> Record r)
-actionInfoParser lex condParser =
+actionInfoParser lex precondP effectP =
     paramParser lex
     <|>
-    precondParser lex condParser
+    precondParser lex precondP
     <|>
-    effectParser lex condParser
+    effectParser lex effectP
 
 effectParser lex condParser = do
     try $ T.reserved lex ":effect"
@@ -281,31 +339,3 @@ precondParser lex condParser = do
     precond <- maybeParser lex condParser
     return $ setPrecondition precond
 
-
-parseProblem = (T.parens lexer) eof
-
-
-standardParser :: GenParser Char StandardDomain StandardDomain
-standardParser =
-    let condParser = conditionParser lexer :: CharParser StandardDomain GoalExpr in
-    domainParser lexer 
-        (domainInfoParser lexer condParser)
-        (actionParser lexer condParser)
-
-
-stdProblemParser :: GenParser Char StandardProblem StandardProblem
-stdProblemParser =
-    problemParser lexer $
-    problemInfoParser lexer
-    (stdStateParser lexer :: CharParser StandardProblem (Expr (Atomic (Expr Const))))
-    (maybeParser lexer $ conditionParser lexer)
-    (maybeParser lexer $ conditionParser lexer)
-        
-
-runPrintingParser parser source input = do
-    case (runParser (parser) (print "") source input) of
-        Left err -> do
-            let msg = "Parse error at " ++ show err
-            putStrLn msg
-        Right x ->
-            print x
