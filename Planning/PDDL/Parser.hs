@@ -94,6 +94,7 @@ domainParser lex domainInfoParser domainItemParser = T.whiteSpace lex >> T.paren
         <|>
         domainItemParser
         )
+    updateState (\d -> setItems (reverse $ getItems d) d)
     getState
     )
 

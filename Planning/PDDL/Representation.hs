@@ -361,6 +361,24 @@ instance (Data a, Data b, Data c) => HasInitial a (Problem a b c)
 instance (Data a, Data b, Data c) => HasGoal b (Problem a b c)
 instance (Data a, Data b, Data c) => HasConstraints c (Problem a b c)
 
+instance 
+    (Data (Expr a), Data (Expr b), Data (Expr c),
+     PDDLDoc a, PDDLDoc b, PDDLDoc c) =>
+    Show (Problem (Expr a) (Expr b) (Expr c)) where
+    show prob = show $ parens $ sep $
+        text "define" :
+        (parens $ text "problem" <+> (text $ getName prob)) :
+        (parens $ text ":domain" <+> (text $ getDomainName prob)) :
+        (parens $ sep $ text ":requirements" : map (text . (':':)) (getRequirements prob)) :
+        docNonEmpty ":objects" (getConstants prob) :
+        docNonEmpty ":init" (getInitial prob) :
+        maybe empty (\x -> parens $ sep [text ":goal", pddlExprDoc x]) 
+            (getGoal prob) :
+        docMaybe ":constraints" (getConstraints prob) : []
+
+       
+    
+
 emptyProblem = Problem
     (Name "empty")
     (DomainName "empty")
