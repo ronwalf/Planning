@@ -187,36 +187,11 @@ docNonEmpty name ol =
 docMaybe :: PDDLDoc f => String -> Maybe (Expr f) -> Doc
 docMaybe name Nothing = empty
 docMaybe name (Just (In x)) = sep $ [ text name, pddlDoc x ]
+
+
 ------------------------------
 -- Domain Description
 ------------------------------
-
-{-
-data Domain a = Domain {
-    domainName :: String,
-    requirements :: [String],
-    -- Types are represented as constants.  Not very consistent, but easily done!
-    types :: [TypedConstExpr],
-    constants :: [TypedConstExpr],
-    predicates :: [ Expr (Atomic TypedVarExpr) ],
-    items :: [a]
-} deriving (Eq)
-
-emptyDomain = Domain "empty" [] [] [] [] []
-
-instance (PDDLDoc a) => Show (Domain (Expr a)) where
-    show domain = show $ parens $ ($$) (text "define") $ vcat $
-        parens (text "domain" <+> text (domainName domain)) :
-        -- Requirement strings are prefixed with ':'
-        parens (sep $ map (text . (':':)) $ "requirements" : requirements domain) :
-        parens (sep $ (text ":types") :
-            [pddlDoc t | (In t) <- types domain]) :
-        parens (sep $ (text ":predicates") :
-            [pddlDoc p | (In p) <- predicates domain]) :
-        space :
-        intersperse space [pddlDoc x | In x <- items domain]
--}
-
 data Domain a b = Domain 
     Name
     Requirements
@@ -287,15 +262,6 @@ instance (Data p, Data e) => HasEffect e (Action p e)
 defaultAction :: (Data p, Data e) => Action p e
 defaultAction = Action undefined (Parameters []) (Precondition Nothing) (Effect Nothing)
 
---data Action c e = Action String [TypedVarExpr] (Maybe c) c
-{--
-    actionName :: String,
-    parameters :: [Expr TypedVar],
-    precondition :: Maybe GoalExpr,
-    effect ::  GoalExpr
---}
-
-
 instance (Data (Expr p), Data (Expr e), PDDLDoc p, PDDLDoc e) => 
     PDDLDoc (DomainItem (Action (Expr p) (Expr e))) where
     pddlDoc (DomainItem a) = parens $ sep [
@@ -308,41 +274,6 @@ instance (Data (Expr p), Data (Expr e), PDDLDoc p, PDDLDoc e) =>
 -------------------------------
 -- Problem Description
 -------------------------------
-{-
-data Problem a b c = Problem {
-    problemName :: String,
-    problemDomain :: String,
-    problemRequirements :: [String],
-    objects :: [TypedConstExpr],
-    initial :: [a],
-    goal :: Maybe b,
-    constraints :: Maybe c
-    }
-
-emptyProblem = Problem {
-    problemName = "empty",
-    problemDomain = "emptyDomain",
-    problemRequirements = [],
-    objects = [],
-    initial = [],
-    goal = Nothing,
-    constraints = Nothing
-}
-
-instance (PDDLDoc a, PDDLDoc b, PDDLDoc c) => Show (Problem (Expr a) (Expr b) (Expr c)) where
-    show problem = show $ parens $ sep $
-        text "define" :
-        (parens $ text "problem" <+> (text $ problemName problem)) :
-        (parens $ text ":domain" <+> (text $ problemDomain problem)) :
-        (parens $ sep $ text ":requirements" : map (text . (':':)) (problemRequirements problem)) :
-        docNonEmpty ":objects" (objects problem) :
-        docNonEmpty ":init" (initial problem) :
-        maybe empty (\x -> parens $ sep [text ":goal", pddlExprDoc x]) 
-            (goal problem) :
-        docMaybe ":constraints" (constraints problem) : []
-
--}
-
 data Problem a b c = Problem
     Name
     DomainName
