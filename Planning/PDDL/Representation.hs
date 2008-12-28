@@ -1,7 +1,4 @@
-{-# OPTIONS 
- -fglasgow-exts
- -fallow-overlapping-instances
- -fallow-undecidable-instances #-}
+{-# LANGUAGE OverlappingInstances, UndecidableInstances#-}
 module Planning.PDDL.Representation (
     module Planning.Expressions,
     module Planning.Records,
@@ -34,6 +31,7 @@ import Planning.Records
 class Functor f => PDDLDoc f where
     pddlDoc :: (PDDLDoc g) => f (Expr g) -> Doc
 
+pddlExprDoc :: PDDLDoc f => Expr f -> Doc
 pddlExprDoc (In x) = pddlDoc x
 
 instance PDDLDoc f => Show (Expr f) where
@@ -176,6 +174,15 @@ instance PDDLDoc HoldAfter where
         double n,
         pddlExprDoc e]
 
+instance PDDLDoc OneOf where
+    pddlDoc (OneOf el) = parens $ sep $
+        text "oneof":
+        map pddlExprDoc el
+
+instance PDDLDoc Unknown where
+    pddlDoc (Unknown e) = parens $ sep [
+        text "unknown",
+        pddlExprDoc e]
 
 
 docNonEmpty :: PDDLDoc f => String -> [Expr f] -> Doc
@@ -185,7 +192,7 @@ docNonEmpty name ol =
         [ pddlDoc x | In x <- ol ]
 
 docMaybe :: PDDLDoc f => String -> Maybe (Expr f) -> Doc
-docMaybe name Nothing = empty
+docMaybe _ Nothing = empty
 docMaybe name (Just (In x)) = sep $ [ text name, pddlDoc x ]
 
 
@@ -225,6 +232,7 @@ instance (Data (Expr a), Data (Expr b), PDDLDoc a, PDDLDoc b) =>
         space :
         intersperse space [pddlDoc x | In x <- getItems domain]
 
+emptyDomain :: forall a b. Domain a b
 emptyDomain = Domain 
     (Name "empty") 
     (Requirements []) 
@@ -239,11 +247,12 @@ data DomainItem c e = DomainItem c deriving (Data, Eq)
 deriving instance Typeable2 DomainItem
 
 instance Functor (DomainItem c) where
-    fmap f (DomainItem c) = DomainItem c
+    fmap _ (DomainItem c) = DomainItem c
 instance (Eq c) => FuncEq (DomainItem c) where
     funcEq (DomainItem c1) (DomainItem c2) = c1 == c2
 instance PDDLDoc i => PDDLDoc (DomainItem (Expr i)) where
     pddlDoc (DomainItem (In i)) = pddlDoc i
+domainItem :: (:<:) (DomainItem c) f => c -> Expr f
 domainItem i = inject $ DomainItem i
 
 
@@ -300,7 +309,8 @@ instance
         text "define" :
         (parens $ text "problem" <+> (text $ getName prob)) :
         (parens $ text ":domain" <+> (text $ getDomainName prob)) :
-        (parens $ sep $ text ":requirements" : map (text . (':':)) (getRequirements prob)) :
+        (if null $ getRequirements prob then empty else 
+           (parens $ sep $ text ":requirements" : map (text . (':':)) (getRequirements prob))) :
         docNonEmpty ":objects" (getConstants prob) :
         docNonEmpty ":init" (getInitial prob) :
         maybe empty (\x -> parens $ sep [text ":goal", pddlExprDoc x]) 
@@ -309,7 +319,7 @@ instance
 
        
     
-
+emptyProblem :: forall a b c. Problem a b c
 emptyProblem = Problem
     (Name "empty")
     (DomainName "empty")

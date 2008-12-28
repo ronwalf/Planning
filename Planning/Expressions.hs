@@ -1,7 +1,5 @@
-{-# OPTIONS
- -fglasgow-exts
- -fallow-undecidable-instances
- #-}
+{-# LANGUAGE UndecidableInstances, StandaloneDeriving #-}
+
 module Planning.Expressions (
     module Planning.Wouter,
 
@@ -50,9 +48,11 @@ module Planning.Expressions (
     SometimeBefore(..), eSometimeBefore,
     AlwaysWithin(..), eAlwaysWithin,
     HoldDuring(..), eHoldDuring,
-    HoldAfter(..), eHoldAfter
+    HoldAfter(..), eHoldAfter,
    
-
+    -- Partial Observability
+    OneOf(..), eOneOf,
+    Unknown(..), eUnknown
 ) where
 
 --import Data.Generics hiding ((:+:), Inl, Inr)
@@ -337,6 +337,25 @@ instance FuncEq HoldAfter where
     funcEq (HoldAfter n1 e1) (HoldAfter n2 e2) = (n1 == n2) && (e1 == e2)
 eHoldAfter d e = inject (HoldAfter d e)
 
+
+----------------------------------
+-- Partial Observability
+----------------------------------
+data OneOf e = OneOf [e] deriving (Data, Eq)
+deriving instance Typeable1 OneOf
+instance Functor OneOf where
+    fmap f (OneOf e) = OneOf $ map f e
+instance FuncEq OneOf where
+    funcEq (OneOf e1) (OneOf e2) = e1 == e2
+eOneOf e = inject (OneOf e)
+
+data Unknown e = Unknown e deriving (Data, Eq)
+deriving instance Typeable1 Unknown
+instance Functor Unknown where
+    fmap f (Unknown e) = Unknown $ f e
+instance FuncEq Unknown where
+    funcEq (Unknown e1) (Unknown e2) = e1 == e2
+eUnknown e = inject (Unknown e)
 
 
 ----------------------------------

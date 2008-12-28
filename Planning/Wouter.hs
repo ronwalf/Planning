@@ -1,7 +1,4 @@
-{-# OPTIONS 
- -fglasgow-exts
- -fallow-overlapping-instances
-  #-}
+{-# LANGUAGE OverlappingInstances#-}
 module Planning.Wouter where
 
 import Data.Generics hiding ((:+:), Inl, Inr)

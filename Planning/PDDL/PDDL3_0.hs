@@ -1,11 +1,7 @@
-{-# OPTIONS 
- -fglasgow-exts
- -fcontext-stack=40
-#-}
 module Planning.PDDL.PDDL3_0 (
     module Planning.PDDL.Representation,
     Term, TermExpr, termParser,
-    ConstTerm, ConstTermExpr,
+    ConstTerm, ConstTermExpr, constTermParser,
     InitLiteral, InitLiteralExpr,
 
     PDDLAtom,
@@ -181,7 +177,6 @@ type PDDLProblem = Problem InitLiteralExpr PreferenceGDExpr ConstraintGDExpr
 pddlDomainParser :: CharParser PDDLDomain PDDLDomain
 pddlDomainParser =
     let
-        termP = termParser lexer :: CharParser PDDLDomain TermExpr
         constraintP = constraintGDParser lexer :: CharParser PDDLDomain ConstraintGDExpr
         prefGDP = prefGDParser lexer :: CharParser PDDLDomain PreferenceGDExpr
         effectP = effectDParser lexer :: CharParser PDDLDomain EffectDExpr
@@ -194,7 +189,6 @@ pddlDomainParser =
 pddlProblemParser :: CharParser PDDLProblem PDDLProblem
 pddlProblemParser =
     let
-        termP = termParser lexer :: CharParser PDDLProblem TermExpr
         constP = constParser lexer :: CharParser PDDLProblem ConstTermExpr
         initP = stdStateParser lexer constP :: CharParser PDDLProblem InitLiteralExpr
         goalP = prefGDParser lexer :: CharParser PDDLProblem PreferenceGDExpr

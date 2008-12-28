@@ -1,8 +1,7 @@
-{-# OPTIONS 
- -fglasgow-exts
- -fallow-overlapping-instances
- -fallow-undecidable-instances #-}
+{-# LANGUAGE OverlappingInstances, UndecidableInstances #-}
 module Planning.Util where
+
+import Data.List
 
 import Planning.Expressions
 
@@ -48,4 +47,68 @@ instance ((:<:) Preference g, NNF g g) => NNF Preference g where
 
 
 
+class (Functor f, Functor g) => Conjuncts f g where
+    conjuncts' :: f (Expr g) -> [Expr g]
+conjuncts (In x) = conjuncts' x
+conjunct el = eAnd $ concatMap conjuncts el
+
+instance (Conjuncts f h, Conjuncts g h) => Conjuncts (f :+: g) h where
+    conjuncts' (Inl x) = conjuncts' x
+    conjuncts' (Inr y) = conjuncts' y
+
+instance (:<:) (Atomic t) g => Conjuncts (Atomic t) g where
+    conjuncts' (Atomic p tl) = [eAtomic p tl]
+instance (:<:) And g => Conjuncts And g where 
+    conjuncts' (And el) = el
+instance (:<:) Or g => Conjuncts Or g where
+    conjuncts' (Or el) = [eOr el]
+instance (:<:) Not g => Conjuncts Not g where
+    conjuncts' (Not e) = [eNot e]
+instance (:<:) (ForAll t) g => Conjuncts (ForAll t) g where
+    conjuncts' (ForAll vl e) = [eForAll vl e]
+instance (:<:) (Exists t) g => Conjuncts (Exists t) g where
+    conjuncts' (Exists vl e) = [eExists vl e]
+instance (:<:) Imply g => Conjuncts Imply g where
+    conjuncts' (Imply e1 e2) = [eImply e1 e2]
+instance (:<:) Preference g => Conjuncts Preference g where
+    conjuncts' (Preference n e) = [ePreference n e]
+instance (:<:) (When p) g => Conjuncts (When p) g where
+    conjuncts' (When p e) = [eWhen p e]
+
+class (Functor f) => FreeVarsFindable f where
+    findFreeVars' :: f [Expr Var] -> [Expr Var]
+findFreeVars :: FreeVarsFindable f => Expr f -> [Expr Var]
+findFreeVars = foldExpr findFreeVars'
+
+instance (FreeVarsFindable f, FreeVarsFindable g) => FreeVarsFindable (f :+: g) where
+    findFreeVars' (Inl x) = findFreeVars' x
+    findFreeVars' (Inr y) = findFreeVars' y
+
+instance FreeVarsFindable Var where
+    findFreeVars' (Var n) = [eVar n]
+instance FreeVarsFindable Const where
+    findFreeVars' _ = []
+instance FreeVarsFindable Function where
+    findFreeVars' (Function _ tl) = concat tl
+instance FreeVarsFindable t => FreeVarsFindable (Typed (Expr t)) where
+    findFreeVars' (Typed t _) = findFreeVars t
+
+instance FreeVarsFindable t => FreeVarsFindable (Atomic (Expr t)) where
+    findFreeVars' (Atomic _ tl) = concatMap findFreeVars tl
+instance FreeVarsFindable And where
+    findFreeVars' (And el) = concat el
+instance FreeVarsFindable Or where
+    findFreeVars' (Or el) = concat el
+instance FreeVarsFindable Not where
+    findFreeVars' (Not e) = e
+instance FreeVarsFindable t => FreeVarsFindable (ForAll (Expr t)) where
+    findFreeVars' (ForAll vl e) = e \\ concatMap findFreeVars vl
+instance FreeVarsFindable t => FreeVarsFindable (Exists (Expr t)) where
+    findFreeVars' (Exists vl e) = e \\ concatMap findFreeVars vl
+instance FreeVarsFindable Imply where
+    findFreeVars' (Imply e1 e2) = e1 ++ e2
+instance FreeVarsFindable Preference where
+    findFreeVars' (Preference _ e) = e
+instance FreeVarsFindable f => FreeVarsFindable (When (Expr f)) where
+    findFreeVars' (When p e) = findFreeVars p ++ e
 

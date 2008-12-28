@@ -1,0 +1,24 @@
+Name:		Planning
+Version:	0.1
+Cabal-Version:  >= 1.2
+Build-Type:     Simple
+License:	BSD3
+License-File:	LICENSE
+Author:		Ron Alford
+Homepage:	http://www.cs.umd.edu/~ronwalf/software/planning/
+Category:	AI
+Synopsis:	A library for parsing and representing planning languages
+Build-Depends:        base
+
+Library
+  Build-Depends:
+        base >= 3 && <= 4.0.0.1,
+        syb >= 0.1.0.0 && < 0.2,
+        parsec >= 2.1.0.1 && < 3,
+        pretty >= 1.0.1.0 && < 2
+  Exposed-modules:
+        Planning.Expressions, Planning.Records, Planning.Util, Planning.Wouter,
+        Planning.PDDL.PDDL3_0, Planning.PDDL.Parser,
+        Planning.PDDL.Representation, Planning.PDDL.Pond
+  ghc-options:
+        -O2 -fglasgow-exts -fcontext-stack=40 -Wall
