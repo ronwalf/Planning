@@ -2,7 +2,7 @@ module Planning.PDDL.PDDL3_0 (
     module Planning.PDDL.Representation,
     Term, TermExpr, termParser,
     ConstTerm, ConstTermExpr, constTermParser,
-    InitLiteral, InitLiteralExpr,
+    InitLiteral, InitLiteralExpr, initLiteralParser,
 
     PDDLAtom,
 
@@ -57,7 +57,7 @@ type InitLiteral =
     Not :+:
     At (Expr Const) -- By bnf, this must be a number.
 type InitLiteralExpr = Expr InitLiteral
---deriving instance Data InitLiteralExpr
+initLiteralParser :: T.TokenParser a -> CharParser a InitLiteralExpr
 initLiteralParser lex =
     let thisP = initLiteralParser lex in
     notParser lex thisP <|>
@@ -190,7 +190,7 @@ pddlProblemParser :: CharParser PDDLProblem PDDLProblem
 pddlProblemParser =
     let
         constP = constParser lexer :: CharParser PDDLProblem ConstTermExpr
-        initP = stdStateParser lexer constP :: CharParser PDDLProblem InitLiteralExpr
+        initP = initLiteralParser lexer :: CharParser PDDLProblem InitLiteralExpr
         goalP = prefGDParser lexer :: CharParser PDDLProblem PreferenceGDExpr
         constraintP = constraintGDParser lexer :: CharParser PDDLProblem ConstraintGDExpr
     in

@@ -10,15 +10,20 @@ Category:	AI
 Synopsis:	A library for parsing and representing planning languages
 Build-Depends:        base
 
+Executable pddlcheck
+    Main-Is: pddlcheck.hs
+    Build-Depends:
+    GHC-Options:
+        -O2 -fglasgow-exts -fcontext-stack=40 -Wall
+
 Library
   Build-Depends:
         base >= 3 && <= 4.0.0.1,
-        syb >= 0.1.0.0 && < 0.2,
         parsec >= 2.1.0.1 && < 3,
         pretty >= 1.0.1.0 && < 2
   Exposed-modules:
         Planning.Expressions, Planning.Records, Planning.Util, Planning.Wouter,
         Planning.PDDL.PDDL3_0, Planning.PDDL.Parser,
-        Planning.PDDL.Representation, Planning.PDDL.Pond
+        Planning.PDDL.Representation, Planning.PDDL.Pond, Planning.PDDL.NDPDDL
   ghc-options:
         -O2 -fglasgow-exts -fcontext-stack=40 -Wall
