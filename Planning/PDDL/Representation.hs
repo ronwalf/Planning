@@ -1,4 +1,4 @@
-{-# LANGUAGE OverlappingInstances, UndecidableInstances#-}
+{-# LANGUAGE OverlappingInstances, UndecidableInstances, DeriveDataTypeable #-}
 module Planning.PDDL.Representation (
     module Planning.Expressions,
     module Planning.Records,
@@ -17,7 +17,7 @@ module Planning.PDDL.Representation (
     pddlExprDoc, docMaybe
 ) where
 
-import Data.Generics (Data, Typeable, Typeable2)
+import Data.Data
 import Data.List
 import Text.PrettyPrint
 

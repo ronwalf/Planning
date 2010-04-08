@@ -9,6 +9,7 @@ import Planning.Expressions
 -- nnf' takes a bool arg, False for negated, True for not-negated.
 class (Functor f, Functor g) => NNF f g where
     nnf' :: Bool -> f (Expr g) -> Expr g
+nnf :: (NNF f f) => Expr f -> Expr f
 nnf (In e) = nnf' True e
 
 instance (NNF f h, NNF g h) => NNF (f :+: g) h where
@@ -49,7 +50,9 @@ instance ((:<:) Preference g, NNF g g) => NNF Preference g where
 
 class (Functor f, Functor g) => Conjuncts f g where
     conjuncts' :: f (Expr g) -> [Expr g]
+conjuncts :: (Conjuncts f f) => Expr f -> [Expr f]
 conjuncts (In x) = conjuncts' x
+conjunct :: (And :<: f, Conjuncts f f) => [Expr f] -> Expr f
 conjunct el = eAnd $ concatMap conjuncts el
 
 instance (Conjuncts f h, Conjuncts g h) => Conjuncts (f :+: g) h where

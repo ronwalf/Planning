@@ -1,4 +1,4 @@
-{-# LANGUAGE UndecidableInstances, StandaloneDeriving #-}
+{-# LANGUAGE UndecidableInstances, StandaloneDeriving, DeriveDataTypeable #-}
 
 module Planning.Expressions (
     module Planning.Wouter,
@@ -56,27 +56,30 @@ module Planning.Expressions (
 ) where
 
 --import Data.Generics hiding ((:+:), Inl, Inr)
-import Data.Generics (Data, Typeable, Typeable1, Typeable2)
+--import Data.Generics (Data, Typeable, Typeable1, Typeable2)
+import Data.Data
 
 import Planning.Wouter
 
 ---------------------------------
 -- Term Holders
 ---------------------------------
-data Const e = Const String deriving (Data, Eq)
-deriving instance Typeable1 Const
+data Const e = Const String deriving (Data, Eq, Typeable)
+--deriving instance Typeable1 Const
 instance Functor Const where
-    fmap f (Const x) = Const x
+    fmap _ (Const x) = Const x
 instance FuncEq Const where
     funcEq (Const x) (Const y) = x == y
+eConst :: (Const :<: f) => String -> Expr f
 eConst x = inject (Const x)
 
 data Var e = Var String deriving (Data, Eq)
 deriving instance Typeable1 Var
 instance Functor Var where
-    fmap f (Var x) = Var x
+    fmap _ (Var x) = Var x
 instance FuncEq Var where
     funcEq (Var x) (Var y) = x == y
+eVar :: (Var :<: f) => String -> Expr f
 eVar x = inject (Var x)
 
 data Function e = Function String [e] deriving (Data, Eq)
@@ -85,6 +88,7 @@ instance Functor Function where
     fmap f (Function n tl) = Function n $ map f tl
 instance FuncEq Function where
     funcEq (Function n1 tl1) (Function n2 tl2) = (n1 == n2) && (tl1 == tl2)
+eFunc :: (Function :<: f) => String -> [Expr f] -> Expr f
 eFunc n tl = inject (Function n tl)
 
 ---------------------------------------
@@ -94,9 +98,10 @@ eFunc n tl = inject (Function n tl)
 data Typed t e = Typed t (Expr Const) deriving (Data, Eq)
 deriving instance Typeable2 Typed
 instance Functor (Typed t) where
-    fmap f (Typed e t) = Typed e t
+    fmap _ (Typed e t) = Typed e t
 instance Eq t => FuncEq (Typed t) where
     funcEq (Typed e1 t1) (Typed e2 t2) = (e1 == e2) && (t1 == t2)
+eTyped :: (Typed t :<: f) => t -> Expr Const -> Expr f
 eTyped e t = inject (Typed e t)
 type TypedConst = Typed (Expr Const)
 type TypedConstExpr = Expr (TypedConst :+: Const)
@@ -131,9 +136,10 @@ removeType = foldExpr untype
 data Atomic t e = Atomic String [t] deriving (Data, Eq)
 deriving instance Typeable2 Atomic
 instance Functor (Atomic a) where
-    fmap f (Atomic p tl) = Atomic p tl
+    fmap _ (Atomic p tl) = Atomic p tl
 instance (Eq t) => FuncEq (Atomic t) where
     funcEq (Atomic p1 tl1) (Atomic p2 tl2) = (p1 == p2) && (tl1 == tl2)
+eAtomic :: (Atomic t :<: f) => String -> [t] -> Expr f
 eAtomic p tl = inject (Atomic p tl)
 
 data Not e = Not e deriving (Data, Eq)
@@ -142,6 +148,7 @@ instance Functor Not where
     fmap f (Not e) = Not $ f e
 instance FuncEq Not where
     funcEq (Not x) (Not y) = x == y
+eNot :: (Not :<: f) => Expr f -> Expr f
 eNot e = inject (Not e)
 
 ---------------------------------------
@@ -153,6 +160,7 @@ instance Functor And where
     fmap f (And el) = And $ map f el
 instance FuncEq And where
     funcEq (And el1) (And el2) = el1 == el2
+eAnd :: (And :<: f) => [Expr f] -> Expr f
 eAnd [e] = e
 eAnd el = inject (And el)
 
@@ -162,6 +170,7 @@ instance Functor Or where
     fmap f (Or el) = Or $ map f el
 instance FuncEq Or where
     funcEq (Or el1) (Or el2) = el1 == el2
+eOr :: (Or :<: f) => [Expr f] -> Expr f
 eOr [e] = e
 eOr el = inject (Or el)
 
@@ -171,6 +180,7 @@ instance Functor Imply where
     fmap f (Imply e1 e2) = Imply (f e1) (f e2)
 instance FuncEq Imply where
     funcEq (Imply x1 y1) (Imply x2 y2) = (x1 == x2) && (y1 == y2)
+eImply :: (Imply :<: f) => Expr f -> Expr f -> Expr f
 eImply e1 e2 = inject (Imply e1 e2)
 
 data ForAll v e = ForAll [v] e deriving (Data, Eq)
@@ -179,6 +189,7 @@ instance Functor (ForAll vl) where
     fmap f (ForAll vl e) = ForAll vl $ f e
 instance Eq v => FuncEq (ForAll v) where
     funcEq (ForAll vl1 e1) (ForAll vl2 e2) = (vl1 == vl2) && (e1 == e2)
+eForAll :: (ForAll v :<: f) => [v] -> Expr f -> Expr f
 eForAll [] e = e
 eForAll vl e = inject (ForAll vl e)
 
@@ -188,6 +199,7 @@ instance Functor (Exists vl) where
     fmap f (Exists vl e) = Exists vl $ f e
 instance Eq v => FuncEq (Exists v) where
     funcEq (Exists vl1 e1) (Exists vl2 e2) = (vl1 == vl2) && (e1 == e2)
+eExists :: (Exists v :<: f) => [v] -> Expr f -> Expr f
 eExists [] e = e
 eExists vl e = inject (Exists vl e)
 
@@ -198,6 +210,7 @@ instance Functor (When p) where
     fmap f (When p e) = When p $ f e
 instance Eq p => FuncEq (When p) where
     funcEq (When p1 e1) (When p2 e2) = (p1 == p2) && (e1 == e2)
+eWhen :: (When p :<: f) => p -> Expr f -> Expr f
 eWhen p e = inject (When p e)
 
 ----------------------------------
@@ -209,6 +222,7 @@ instance Functor Preference where
     fmap f (Preference n e) = Preference n $ f e
 instance FuncEq Preference where
     funcEq (Preference n1 e1) (Preference n2 e2) = (n1 == n2) && (e1 == e2)
+ePreference :: (Preference :<: f) => Maybe String -> Expr f -> Expr f
 ePreference n e = inject (Preference n e)
 
 class Functor f => UnPreference g f where
@@ -221,7 +235,7 @@ class Functor f => UnPreference g f where
 data Start e = Start deriving (Data, Eq)
 deriving instance Typeable1 Start
 instance Functor Start where
-    fmap f Start = Start
+    fmap _ Start = Start
 instance FuncEq Start where
     funcEq _ _ = True
 eStart :: (:<:) Start f => Expr f
@@ -230,7 +244,7 @@ eStart = inject Start
 data End e = End deriving (Data, Eq)
 deriving instance Typeable1 End
 instance Functor End where
-    fmap f End = End
+    fmap _ End = End
 instance FuncEq End where
     funcEq _ _ = True
 eEnd :: (:<:) End f => Expr f
@@ -239,7 +253,7 @@ eEnd = inject End
 data All e = All deriving (Data, Eq)
 deriving instance Typeable1 All
 instance Functor All where
-    fmap f All = All
+    fmap _ All = All
 instance FuncEq All where
     funcEq _ _ = True
 eAll :: (:<:) All f => Expr f
@@ -252,6 +266,7 @@ instance Functor (At t) where
     fmap f (At t e) = At t $ f e
 instance Eq t => FuncEq (At t) where
     funcEq (At t1 e1) (At t2 e2) = (t1 == t2) && (e1 == e2)
+eAt :: (At t :<: f) => t -> Expr f -> Expr f
 eAt t e = inject (At t e)
 
 data Over t e = Over t e deriving (Data, Eq)
@@ -260,6 +275,7 @@ instance Functor (Over t) where
     fmap f (Over t e) = Over t $ f e
 instance Eq t => FuncEq (Over t) where
     funcEq (Over t1 e1) (Over t2 e2) = (t1 == t2) && (e1 == e2)
+eOver :: (Over t :<: f) => t -> Expr f -> Expr f
 eOver t e = inject (Over t e)
 
 data Always e = Always e deriving (Data, Eq)
@@ -268,6 +284,7 @@ instance Functor Always where
     fmap f (Always e) = Always $ f e
 instance FuncEq Always where
     funcEq (Always e1) (Always e2) = e1 == e2
+eAlways :: (Always :<: f) => Expr f -> Expr f
 eAlways e = inject (Always e)
 
 data Sometime e = Sometime e deriving (Data, Eq)
@@ -276,6 +293,7 @@ instance Functor Sometime where
     fmap f (Sometime e) = Sometime $ f e
 instance FuncEq Sometime where
     funcEq (Sometime e1) (Sometime e2) = e1 == e2
+eSometime :: (Sometime :<: f) => Expr f -> Expr f
 eSometime e = inject (Sometime e)
 
 data Within e = Within Double e deriving (Data, Eq)
@@ -284,6 +302,7 @@ instance Functor Within where
     fmap f (Within n e) = Within n $ f e
 instance FuncEq Within where
     funcEq (Within n1 e1) (Within n2 e2) = (n1 == n2) && (e1 == e2)
+eWithin :: (Within :<: f) => Double -> Expr f -> Expr f
 eWithin d e = inject (Within d e)
 
 data AtMostOnce e = AtMostOnce e deriving (Data, Eq)
@@ -292,6 +311,7 @@ instance Functor AtMostOnce where
     fmap f (AtMostOnce e) = AtMostOnce $ f e
 instance FuncEq AtMostOnce where
     funcEq (AtMostOnce e1) (AtMostOnce e2) = e1 == e2
+eAtMostOnce :: (AtMostOnce :<: f) => Expr f -> Expr f
 eAtMostOnce e = inject (AtMostOnce e)
 
 data SometimeAfter e = SometimeAfter e e deriving (Data, Eq)
@@ -300,6 +320,7 @@ instance Functor SometimeAfter where
     fmap f (SometimeAfter e1 e2) = SometimeAfter (f e1) (f e2)
 instance FuncEq SometimeAfter where
     funcEq (SometimeAfter e11 e12 ) (SometimeAfter e21 e22) = (e11 == e21) && (e12 == e22)
+eSometimeAfter :: (SometimeAfter :<: f) => Expr f -> Expr f -> Expr f
 eSometimeAfter e1 e2 = inject (SometimeAfter e1 e2)
 
 data SometimeBefore e = SometimeBefore e e deriving (Data, Eq)
@@ -308,6 +329,7 @@ instance Functor SometimeBefore where
     fmap f (SometimeBefore e1 e2) = SometimeBefore (f e1) (f e2)
 instance FuncEq SometimeBefore where
     funcEq (SometimeBefore e11 e12 ) (SometimeBefore e21 e22) = (e11 == e21) && (e12 == e22)
+eSometimeBefore :: (SometimeBefore :<: f) => Expr f -> Expr f -> Expr f
 eSometimeBefore e1 e2 = inject (SometimeBefore e1 e2)
 
 data AlwaysWithin e = AlwaysWithin Double e e deriving (Data, Eq)
@@ -317,6 +339,7 @@ instance Functor AlwaysWithin where
 instance FuncEq AlwaysWithin where
     funcEq (AlwaysWithin d1 e11 e12 ) (AlwaysWithin d2 e21 e22) = 
         (d1 == d2) && (e11 == e21) && (e12 == e22)
+eAlwaysWithin :: (AlwaysWithin :<: f) => Double -> Expr f -> Expr f -> Expr f
 eAlwaysWithin d e1 e2 = inject (AlwaysWithin d e1 e2)
 
 data HoldDuring e = HoldDuring Double Double e deriving (Data, Eq)
@@ -326,6 +349,7 @@ instance Functor HoldDuring where
 instance FuncEq HoldDuring where
     funcEq (HoldDuring b1 e1 p1) (HoldDuring b2 e2 p2) = 
         (b1 == b2) && (e1 == e2) && (p1 == p2)
+eHoldDuring :: (HoldDuring :<: f) => Double -> Double -> Expr f -> Expr f
 eHoldDuring b e p = inject (HoldDuring b e p)
 
 
@@ -335,6 +359,7 @@ instance Functor HoldAfter where
     fmap f (HoldAfter n e) = HoldAfter n $ f e
 instance FuncEq HoldAfter where
     funcEq (HoldAfter n1 e1) (HoldAfter n2 e2) = (n1 == n2) && (e1 == e2)
+eHoldAfter :: (HoldAfter :<: f) => Double -> Expr f -> Expr f
 eHoldAfter d e = inject (HoldAfter d e)
 
 
@@ -347,6 +372,7 @@ instance Functor OneOf where
     fmap f (OneOf e) = OneOf $ map f e
 instance FuncEq OneOf where
     funcEq (OneOf e1) (OneOf e2) = e1 == e2
+eOneOf :: (OneOf :<: f) => [Expr f] -> Expr f
 eOneOf e = inject (OneOf e)
 
 data Unknown e = Unknown e deriving (Data, Eq)
@@ -355,6 +381,7 @@ instance Functor Unknown where
     fmap f (Unknown e) = Unknown $ f e
 instance FuncEq Unknown where
     funcEq (Unknown e1) (Unknown e2) = e1 == e2
+eUnknown :: (Unknown :<: f) => Expr f -> Expr f
 eUnknown e = inject (Unknown e)
 
 

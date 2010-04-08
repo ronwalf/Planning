@@ -1,6 +1,10 @@
 module Planning.PDDL.NDPDDL (
     module Planning.PDDL.PDDL3_0,
+    NDPDDLDomain,
+    NDPDDLItems,
+    NDPDDLAction,
     NDEffectD,
+    NDEffectDExpr,
     ndpddlDomainParser
 ) where
 

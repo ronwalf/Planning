@@ -1,7 +1,17 @@
 {-# LANGUAGE OverlappingInstances#-}
-module Planning.Wouter where
+module Planning.Wouter (
+ (:+:)(..),
+ (:<:)(..),
+ Expr(..),
+ inject,
+ foldExpr,
+ FuncEq(..)
+) where
 
-import Data.Generics hiding ((:+:), Inl, Inr)
+--import Data.Generics hiding ((:+:), Inl, Inr)
+import Data.Data
+-- import Data.Typeable
+
 -- Thank you, Wouter Swierstra
 
 {-
