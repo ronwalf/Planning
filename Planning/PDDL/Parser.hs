@@ -1,51 +1,85 @@
 {-# LANGUAGE OverlappingInstances#-}
-module Planning.PDDL.Parser where
+module Planning.PDDL.Parser (
+    pddlLanguage,
+    pddlLexer,
+    parseTypedConst,
+    parseTypedVar,
+    domainParser,
+    domainInfoParser,
+    problemParser,
+    problemInfoParser,
+    constParser,
+    varParser,
+    functionParser,
+    predicateParser,
+    stdStateParser,
+    conditionParser,
+    atomicParser,
+    andParser,
+    orParser,
+    notParser,
+    implyParser,
+    whenParser,
+    forallParser,
+    existsParser,
+    preferenceParser,
+    oneOfParser,
+    unknownParser,
+    maybeParser,
+    actionParser,
+    actionInfoParser,
+    effectParser,
+    paramParser,
+    precondParser,
+    collect
+) where
 
-import Control.Monad
+import Data.Data
 import Text.ParserCombinators.Parsec
-import qualified Text.ParserCombinators.Parsec.Token as Token
 import qualified Text.ParserCombinators.Parsec.Token as T
 
 import Planning.PDDL.Representation
 
+comparisons :: [String]
 comparisons = ["-", "/", "*", "<", ">", "=", ">=", "<="]
 
-pddlLanguage = Token.LanguageDef {
-    Token.commentStart = "",
-    Token.commentEnd = "",
-    Token.commentLine = ";",
-    Token.nestedComments = False,
-    Token.identStart = letter,
-    Token.identLetter = (alphaNum <|> oneOf "_-"),
-    Token.opStart = oneOf [],
-    Token.opLetter = oneOf [],
-    Token.reservedNames = [ "-", -- Types
+pddlLanguage :: T.LanguageDef st
+pddlLanguage = T.LanguageDef {
+    T.commentStart = "",
+    T.commentEnd = "",
+    T.commentLine = ";",
+    T.nestedComments = False,
+    T.identStart = letter,
+    T.identLetter = (alphaNum <|> oneOf "_-"),
+    T.opStart = oneOf [],
+    T.opLetter = oneOf [],
+    T.reservedNames = [ "-", -- Types
         "and", "exists", "forall", "imply", "not", "when", -- Conditions
         ":constants", ":constraints", "define", "domain", ":functions", ":predicates", ":requirements", ":types", -- Domain info
         ":objects", "problem", ":domain",-- Problem info
         ":action", ":effect", ":parameters", ":precondition" -- Action info
         ] ++ comparisons,
-    Token.reservedOpNames = [],
-    Token.caseSensitive = False
+    T.reservedOpNames = [],
+    T.caseSensitive = False
 }
 
-lexer :: Token.TokenParser a
-lexer = Token.makeTokenParser pddlLanguage
+pddlLexer :: T.TokenParser a
+pddlLexer = T.makeTokenParser pddlLanguage
 
 {-
-whiteSpace= Token.whiteSpace lexer
-lexeme    = Token.lexeme lexer
-symbol    = Token.symbol lexer
-natural   = Token.natural lexer
-parens    = Token.parens lexer
-semi      = Token.semi lexer
-identifier= Token.identifier lexer
-reserved  = Token.reserved lexer
+whiteSpace= T.whiteSpace pddlLexer
+lexeme    = T.lexeme pddlLexer
+symbol    = T.symbol pddlLexer
+natural   = T.natural pddlLexer
+parens    = T.parens pddlLexer
+semi      = T.semi pddlLexer
+identifier= T.identifier pddlLexer
+reserved  = T.reserved pddlLexer
 variable  = char '?' >> identifier
 -}
 
 {-
-parseTyped :: ((:<:) f g, (:<:) (Typed (Expr f)) g) => Token.TokenParser a -> GenParser Char a (Expr f) -> GenParser Char a (Expr g)
+parseTyped :: ((:<:) f g, (:<:) (Typed (Expr f)) g) => T.TokenParser a -> CharParser a (Expr f) -> CharParser a (Expr g)
 parseTyped mylex itemP = do
     item <- itemP
     itemType <- option Nothing (do
@@ -57,11 +91,11 @@ parseTyped mylex itemP = do
             Nothing -> item
     return t
 
-parseTypedList :: ((:<:) f g, (:<:) (Typed (Expr f)) g) => Token.TokenParser a -> GenParser Char a (Expr f) -> GenParser Char a ([Expr g])
+parseTypedList :: ((:<:) f g, (:<:) (Typed (Expr f)) g) => T.TokenParser a -> CharParser a (Expr f) -> CharParser a ([Expr g])
 parseTypedList mylex el = many (parseTyped mylex el)
 -}
 
-parseTypedConst :: Token.TokenParser a -> GenParser Char a TypedConstExpr
+parseTypedConst :: T.TokenParser a -> CharParser a TypedConstExpr
 parseTypedConst mylex = do
     In (Const cstr) <- constParser mylex
     option (eConst cstr) (do
@@ -70,7 +104,7 @@ parseTypedConst mylex = do
         return $ eTyped (eConst cstr :: Expr Const) (eConst tstr :: Expr Const))
 
 
-parseTypedVar :: Token.TokenParser a -> GenParser Char a TypedVarExpr
+parseTypedVar :: T.TokenParser a -> CharParser a TypedVarExpr
 parseTypedVar mylex = do
     In (Var vstr) <- varParser mylex
     option (eVar vstr) (do
@@ -78,16 +112,21 @@ parseTypedVar mylex = do
         tstr <- T.identifier mylex
         return $ eTyped (eVar vstr :: Expr Var) (eConst tstr :: Expr Const))
 
--- | The domain parser takes a lexer, an domain item parser, and a domain sink
-domainParser mylex domainInfoParser domainItemParser = T.whiteSpace mylex >> T.parens mylex (do
+-- | The domain parser takes a pddlLexer, an domain item parser, and a domain sink
+domainParser :: (HasName b, HasItems t b) =>
+    T.TokenParser b 
+    -> CharParser b ()
+    -> CharParser b ()
+    -> CharParser b b
+domainParser mylex infoParser domainItemParser = T.whiteSpace mylex >> T.parens mylex (do
     T.reserved mylex "define"
     T.parens mylex $ (do
         T.reserved mylex "domain"
         name <- T.identifier mylex
         updateState (setName name)
         )
-    many $ T.parens mylex (
-        domainInfoParser
+    _ <- many $ T.parens mylex (
+        infoParser
         <|>
         domainItemParser
         )
@@ -95,6 +134,10 @@ domainParser mylex domainInfoParser domainItemParser = T.whiteSpace mylex >> T.p
     getState
     )
 
+problemParser :: (HasName b) => 
+    T.TokenParser b 
+    -> CharParser b a 
+    -> CharParser b b
 problemParser mylex probInfoParser = T.whiteSpace mylex >> T.parens mylex (do
     T.reserved mylex "define"
     T.parens mylex $ (do
@@ -102,7 +145,7 @@ problemParser mylex probInfoParser = T.whiteSpace mylex >> T.parens mylex (do
         name <- T.identifier mylex
         updateState (setName name)
         )
-    many $ T.parens mylex probInfoParser
+    _ <- many $ T.parens mylex probInfoParser
     getState)
 
 constParser :: (:<:) Const t => T.TokenParser a -> CharParser a (Expr t)
@@ -118,14 +161,19 @@ functionParser mylex tp = T.parens mylex $ do
     args <- many tp
     return $ eFunc name args
 
---termParser :: Token.TokenParser a -> CharParser a TermExpr
+--termParser :: T.TokenParser a -> CharParser a TermExpr
 --termParser mylex = 
 --    (varParser mylex) <|> (constParser mylex) <|> (functionParser mylex $ termParser mylex)
-
+predicateParser :: T.TokenParser st -> CharParser st String
 predicateParser mylex =
     (choice [T.reserved mylex c >> return c | c <- comparisons])
     <|>
     T.identifier mylex
+
+stdStateParser :: (Atomic a :<: f) =>
+    T.TokenParser st
+    -> CharParser st a
+    -> CharParser st (Expr f)
 
 stdStateParser mylex termP = 
     T.parens mylex $ 
@@ -142,7 +190,7 @@ conditionParser :: forall a p f. (
     (:<:) Var p,
     (:<:) Const p,
     (:<:) Function p
-    ) => Token.TokenParser a -> CharParser a (Expr p) -> CharParser a (Expr f)
+    ) => T.TokenParser a -> CharParser a (Expr p) -> CharParser a (Expr f)
 conditionParser mylex termP = 
     --(atomicFormulaParser mylex (termParser mylex :: CharParser a (Expr p)) :: CharParser a (Expr f))
     atomicParser mylex termP
@@ -177,67 +225,114 @@ conditionParser mylex termP =
     (atomicFormulaParser mylex (termParser mylex :: CharParser a (Expr p)) :: CharParser a (Expr f))
 -}
 
+atomicParser :: (Atomic a :<: f) =>
+    T.TokenParser st
+    -> CharParser st a
+    -> CharParser st (Expr f)
 atomicParser mylex termP = do
     name <- predicateParser mylex
     arguments <- many $ termP
     return $ eAtomic name arguments
 
+andParser :: (And :<: f) =>
+    T.TokenParser st
+    -> CharParser st (Expr f)
+    -> CharParser st (Expr f)
 andParser mylex exprP = do
     try $ T.reserved mylex "and"
     parts <- many $ T.parens mylex exprP
     return $ eAnd parts
 
+orParser :: (Or :<: f) =>
+    T.TokenParser st
+    -> CharParser st (Expr f)
+    -> CharParser st (Expr f)
 orParser mylex exprP = do
     try $ T.reserved mylex "or"
     parts <- many $ T.parens mylex exprP
     return $ eOr parts
 
+notParser :: (Not :<: f) =>
+    T.TokenParser st
+    -> CharParser st (Expr f)
+    -> CharParser st (Expr f)
 notParser mylex exprP = do
     try $ T.reserved mylex "not"
     part <- T.parens mylex exprP
     return $ eNot part
 
+implyParser :: (Imply :<: f) =>
+    T.TokenParser st
+    -> CharParser st (Expr f)
+    -> CharParser st (Expr f)
 implyParser mylex exprP = do
     try $ T.reserved mylex "imply"
     cond <- T.parens mylex exprP
     res <- T.parens mylex exprP
     return $ eImply cond res
 
+whenParser :: (When a :<: f) =>
+    T.TokenParser st
+    -> CharParser st a
+    -> CharParser st (Expr f)
+    -> CharParser st (Expr f)
 whenParser mylex condP exprP = do
     try $ T.reserved mylex "when"
     cond <- T.parens mylex condP
     eff <- T.parens mylex exprP
     return $ eWhen cond eff
 
+forallParser :: (ForAll TypedVarExpr :<: f) =>
+    T.TokenParser st
+    -> CharParser st (Expr f)
+    -> CharParser st (Expr f)
 forallParser mylex exprP = do
     try $ T.reserved mylex "forall"
     vars <- T.parens mylex $ many $ parseTypedVar mylex
     cond <- T.parens mylex exprP
     return $ eForAll vars cond
 
+existsParser :: (Exists TypedVarExpr :<: f) =>
+    T.TokenParser st
+    -> CharParser st (Expr f)
+    -> CharParser st (Expr f)
 existsParser mylex exprP = do
     try $ T.reserved mylex "exists"
     vars <- T.parens mylex $ many $ parseTypedVar mylex
     cond <- T.parens mylex exprP
     return $ eExists vars cond
 
+preferenceParser :: (Preference :<: f) =>
+    T.TokenParser st
+    -> CharParser st (Expr f)
+    -> CharParser st (Expr f)
 preferenceParser mylex exprP = do
     try $ T.reserved mylex "preference"
     name <- optionMaybe (T.identifier mylex)
-    exp <- T.parens mylex exprP
-    return $ ePreference name exp
+    expr <- T.parens mylex exprP
+    return $ ePreference name expr
 
+oneOfParser :: (OneOf :<: f) =>
+    T.TokenParser st
+    -> CharParser st (Expr f)
+    -> CharParser st (Expr f)
 oneOfParser mylex exprP = do
     try $ T.reserved mylex "oneOf"
     parts <- many1 $ T.parens mylex exprP
     return $ eOneOf parts
 
+unknownParser :: (Unknown :<: f) =>
+    T.TokenParser st
+    -> CharParser st (Expr f)
+    -> CharParser st (Expr f)
 unknownParser mylex exprP = do
     try $ T.reserved mylex "unknown"
     part <- T.parens mylex exprP
     return $ eUnknown part
 
-
+maybeParser :: T.TokenParser st
+    -> CharParser st a
+    -> CharParser st (Maybe a)
 maybeParser mylex p =
     (do
         try $ T.parens mylex $ T.whiteSpace mylex
@@ -247,9 +342,15 @@ maybeParser mylex p =
         result <- T.parens mylex p
         return $ Just result)
 
-
---domainInfoParser :: 
---    Token.TokenParser StandardDomain -> CharParser StandardDomain (Expr f) -> CharParser StandardDomain ()
+domainInfoParser :: (HasRequirements st,
+        HasTypes TypedConstExpr st,
+        HasConstants TypedConstExpr st,
+        HasConstraints a st,
+        Atomic TypedVarExpr :<: f,
+        HasPredicates (Expr f) st) =>
+    T.TokenParser st
+    -> CharParser st a
+    -> CharParser st ()
 domainInfoParser mylex condParser =
     (do
         try $ T.reserved mylex ":requirements"
@@ -277,6 +378,17 @@ domainInfoParser mylex condParser =
         updateState (setPredicates preds)
     )
 
+problemInfoParser :: (HasDomainName st,
+        HasRequirements st,
+        HasConstants TypedConstExpr st,
+        HasInitial a st,
+        HasGoal a1 st,
+        HasConstraints a2 st) =>
+        T.TokenParser st
+    -> GenParser Char st a
+    -> CharParser st a1
+    -> CharParser st a2
+    -> CharParser st ()
 problemInfoParser mylex stateParser goalParser constraintParser =
     (do
         try $ T.reserved mylex ":domain"
@@ -308,15 +420,21 @@ problemInfoParser mylex stateParser goalParser constraintParser =
         cd <- maybeParser mylex constraintParser
         updateState (setConstraints cd))
 
-
-
-
-
+collect ::
+    a -> (a -> GenParser tok st a) -> GenParser tok st a
 collect collector parser =
     (parser collector >>= (\x -> collect x parser ))
     <|>
     return collector
 
+actionParser :: (Data p,
+        Data e,
+        HasItems (Expr f) st,
+        DomainItem (Action p e) :<: f) =>
+    T.TokenParser st
+    -> CharParser st p
+    -> CharParser st e
+    -> GenParser Char st ()
 actionParser mylex precondP effectP = do
     let infoParser = actionInfoParser mylex precondP effectP
     try $ T.reserved mylex ":action"
@@ -325,7 +443,13 @@ actionParser mylex precondP effectP = do
     let action = foldl (\ a t -> t a) (setName name defaultAction) updates
     updateState (\d -> setItems (domainItem action : getItems d) d)
 
---    Token.TokenParser a -> CharParser a f -> CharParser a (Record r -> Record r)
+actionInfoParser :: (HasParameters TypedVarExpr a,
+        HasPrecondition a1 a,
+        HasEffect a2 a) =>
+    T.TokenParser st
+    -> CharParser st a1
+    -> CharParser st a2
+    -> CharParser st (a -> a)
 actionInfoParser mylex precondP effectP =
     paramParser mylex
     <|>
@@ -333,16 +457,26 @@ actionInfoParser mylex precondP effectP =
     <|>
     effectParser mylex effectP
 
+effectParser :: (HasEffect a a1) =>
+        T.TokenParser st
+        -> CharParser st a
+        -> CharParser st (a1 -> a1)
 effectParser mylex condParser = do
     try $ T.reserved mylex ":effect"
     effect <- maybeParser mylex condParser
     return $ setEffect effect
 
+paramParser :: (HasParameters TypedVarExpr a) =>
+    T.TokenParser st -> CharParser st (a -> a)
 paramParser mylex = do
     try $ T.reserved mylex ":parameters"
     params <- T.parens mylex $ many $ parseTypedVar mylex
     return $ setParameters params
 
+precondParser :: (HasPrecondition a a1) =>
+    T.TokenParser st
+    -> CharParser st a
+    -> CharParser st (a1 -> a1)
 precondParser mylex condParser = do
     try $ T.reserved mylex ":precondition"
     precond <- maybeParser mylex condParser

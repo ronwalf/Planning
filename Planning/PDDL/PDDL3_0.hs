@@ -24,7 +24,6 @@ module Planning.PDDL.PDDL3_0 (
 
 ) where
 
-import Data.Generics (Data)
 import Text.ParserCombinators.Parsec
 import qualified Text.ParserCombinators.Parsec.Token as T
 
@@ -35,22 +34,24 @@ type Term = Const :+: Var :+: Function
 type TermExpr = Expr Term
 --deriving instance Data TermExpr
 termParser :: T.TokenParser a -> CharParser a TermExpr
-termParser lex =
-    let thisP = termParser lex in
-    constParser lex <|>
-    varParser lex <|>
-    functionParser lex thisP
+termParser myLex =
+    let thisP = termParser myLex in
+    constParser myLex <|>
+    varParser myLex <|>
+    functionParser myLex thisP
 
 type ConstTerm = Const :+: Function
 type ConstTermExpr = Expr ConstTerm
 --deriving instance Data ConstTermExpr
 constTermParser :: T.TokenParser a -> CharParser a ConstTermExpr
-constTermParser lex =
-    constParser lex <|>
-    functionParser lex (constTermParser lex)
+constTermParser myLex =
+    constParser myLex <|>
+    functionParser myLex (constTermParser myLex)
 
 type PDDLAtom = Atomic TermExpr
-pddlAtomParser lex = atomicParser lex $ termParser lex
+pddlAtomParser :: (Atomic TermExpr :<: f) =>
+    T.TokenParser st -> CharParser st (Expr f)
+pddlAtomParser myLex = atomicParser myLex $ termParser myLex
 
 type InitLiteral =
     Atomic ConstTermExpr :+:
@@ -58,10 +59,10 @@ type InitLiteral =
     At (Expr Const) -- By bnf, this must be a number.
 type InitLiteralExpr = Expr InitLiteral
 initLiteralParser :: T.TokenParser a -> CharParser a InitLiteralExpr
-initLiteralParser lex =
-    let thisP = initLiteralParser lex in
-    notParser lex thisP <|>
-    atomicParser lex (constTermParser lex)
+initLiteralParser myLex =
+    let thisP = initLiteralParser myLex in
+    notParser myLex thisP <|>
+    atomicParser myLex (constTermParser myLex)
 
 
 type GD = 
@@ -75,17 +76,27 @@ type GD =
 type GDExpr = Expr GD
 --deriving instance Data GDExpr
 
-gdParsing lex thisP =
-    notParser lex thisP <|>
-    andParser lex thisP <|>
-    orParser lex thisP <|>
-    implyParser lex thisP <|>
-    existsParser lex thisP <|>
-    forallParser lex thisP <|>
-    pddlAtomParser lex
+gdParsing :: (Not :<: f,
+        And :<: f,
+        Or :<: f,
+        Imply :<: f,
+        Exists TypedVarExpr :<: f,
+        ForAll TypedVarExpr :<: f,
+        Atomic TermExpr :<: f) =>
+    T.TokenParser st
+    -> CharParser st (Expr f)
+    -> CharParser st (Expr f)
+gdParsing myLex thisP =
+    notParser myLex thisP <|>
+    andParser myLex thisP <|>
+    orParser myLex thisP <|>
+    implyParser myLex thisP <|>
+    existsParser myLex thisP <|>
+    forallParser myLex thisP <|>
+    pddlAtomParser myLex
 gdParser :: T.TokenParser a -> CharParser a GDExpr
-gdParser lex =
-    gdParsing lex (gdParser lex)
+gdParser myLex =
+    gdParsing myLex (gdParser myLex)
 
 
 type PreferenceGD = 
@@ -94,12 +105,23 @@ type PreferenceGD =
 type PreferenceGDExpr = Expr PreferenceGD
 --deriving instance Data PreferenceGDExpr
 
-prefGDParsing lex thisP =
-    preferenceParser lex thisP <|>
-    gdParsing lex thisP
+prefGDParsing :: (Preference :<: f,
+        Not :<: f,
+        And :<: f,
+        Or :<: f,
+        Imply :<: f,
+        Exists TypedVarExpr :<: f,
+        ForAll TypedVarExpr :<: f,
+        Atomic TermExpr :<: f) =>
+    T.TokenParser st
+    -> CharParser st (Expr f)
+    -> CharParser st (Expr f)
+prefGDParsing myLex thisP =
+    preferenceParser myLex thisP <|>
+    gdParsing myLex thisP
 prefGDParser :: T.TokenParser a -> CharParser a PreferenceGDExpr
-prefGDParser lex =
-    prefGDParsing lex (prefGDParser lex)
+prefGDParser myLex =
+    prefGDParsing myLex (prefGDParser myLex)
 
 type TimeSpecifier = Start :+: End
 --deriving instance Data (Expr TimeSpecifier)
@@ -130,11 +152,33 @@ type ConstraintGD =
 type ConstraintGDExpr = Expr ConstraintGD
 --deriving instance Data ConstraintGDExpr
 
-constraintGDParsing lex thisP =
-    prefGDParsing lex thisP
+-- TODO: Not done yet!
+constraintGDParsing :: (At (Expr TimeSpecifier) :<: f,
+        Always :<: f,
+        Sometime :<: f,
+        Within :<: f, 
+        AtMostOnce :<: f,
+        SometimeAfter :<: f,
+        SometimeBefore :<: f,
+        AlwaysWithin :<: f,
+        HoldDuring :<: f,
+        HoldAfter :<: f,
+        Preference :<: f,
+        Not :<: f,
+        And :<: f,
+        Or :<: f,
+        Imply :<: f,
+        Exists TypedVarExpr :<: f,
+        ForAll TypedVarExpr :<: f,
+        Atomic TermExpr :<: f) =>
+    T.TokenParser st
+    -> CharParser st (Expr f)
+    -> CharParser st (Expr f)
+constraintGDParsing myLex thisP =
+    prefGDParsing myLex thisP
 constraintGDParser :: T.TokenParser a -> CharParser a ConstraintGDExpr
-constraintGDParser lex =
-    constraintGDParsing lex (constraintGDParser lex)
+constraintGDParser myLex =
+    constraintGDParsing myLex (constraintGDParser myLex)
 
 type EffectD =
     PDDLAtom :+:
@@ -145,15 +189,23 @@ type EffectD =
 type EffectDExpr = Expr EffectD
 --deriving instance Data EffectDExpr
 
-effectDParsing lex thisP =
-    notParser lex thisP <|>
-    andParser lex thisP <|>
-    whenParser lex (gdParser lex) thisP <|>
-    forallParser lex thisP <|>
-    pddlAtomParser lex
+effectDParsing :: (Not :<: f,
+        And :<: f,
+        When GDExpr :<: f,
+        ForAll TypedVarExpr :<: f,
+        Atomic TermExpr :<: f) =>
+    T.TokenParser st
+    -> CharParser st (Expr f)
+    -> CharParser st (Expr f)
+effectDParsing myLex thisP =
+    notParser myLex thisP <|>
+    andParser myLex thisP <|>
+    whenParser myLex (gdParser myLex) thisP <|>
+    forallParser myLex thisP <|>
+    pddlAtomParser myLex
 effectDParser :: T.TokenParser a -> CharParser a EffectDExpr
-effectDParser lex =
-    effectDParsing lex (effectDParser lex)
+effectDParser myLex =
+    effectDParsing myLex (effectDParser myLex)
 
 
 
@@ -177,23 +229,23 @@ type PDDLProblem = Problem InitLiteralExpr PreferenceGDExpr ConstraintGDExpr
 pddlDomainParser :: CharParser PDDLDomain PDDLDomain
 pddlDomainParser =
     let
-        constraintP = constraintGDParser lexer :: CharParser PDDLDomain ConstraintGDExpr
-        prefGDP = prefGDParser lexer :: CharParser PDDLDomain PreferenceGDExpr
-        effectP = effectDParser lexer :: CharParser PDDLDomain EffectDExpr
+        constraintP = constraintGDParser pddlLexer :: CharParser PDDLDomain ConstraintGDExpr
+        prefGDP = prefGDParser pddlLexer:: CharParser PDDLDomain PreferenceGDExpr
+        effectP = effectDParser pddlLexer :: CharParser PDDLDomain EffectDExpr
     in
-    domainParser lexer
-        (domainInfoParser lexer constraintP)
-        (actionParser lexer prefGDP effectP)
+    domainParser pddlLexer
+        (domainInfoParser pddlLexer constraintP)
+        (actionParser pddlLexer prefGDP effectP)
 
 
 pddlProblemParser :: CharParser PDDLProblem PDDLProblem
 pddlProblemParser =
     let
-        constP = constParser lexer :: CharParser PDDLProblem ConstTermExpr
-        initP = initLiteralParser lexer :: CharParser PDDLProblem InitLiteralExpr
-        goalP = prefGDParser lexer :: CharParser PDDLProblem PreferenceGDExpr
-        constraintP = constraintGDParser lexer :: CharParser PDDLProblem ConstraintGDExpr
+        -- constP = constParser pddlLexer :: CharParser PDDLProblem ConstTermExpr
+        initP = initLiteralParser pddlLexer :: CharParser PDDLProblem InitLiteralExpr
+        goalP = prefGDParser pddlLexer :: CharParser PDDLProblem PreferenceGDExpr
+        constraintP = constraintGDParser pddlLexer :: CharParser PDDLProblem ConstraintGDExpr
     in
-    problemParser lexer $
-    problemInfoParser lexer initP goalP constraintP
+    problemParser pddlLexer $
+    problemInfoParser pddlLexer initP goalP constraintP
 

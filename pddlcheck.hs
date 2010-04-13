@@ -19,5 +19,5 @@ main = do
         printResults f (Left err) = do
             putStrLn $ "Error in file " ++ f
             print err
-        printResults f (Right domain) = 
+        printResults f (Right _) = 
             putStrLn $ f ++ " OK"

@@ -1,4 +1,4 @@
-{-# LANGUAGE OverlappingInstances#-}
+{-# LANGUAGE OverlappingInstances, UndecidableInstances #-}
 module Planning.Wouter (
  (:+:)(..),
  (:<:)(..),
@@ -8,62 +8,16 @@ module Planning.Wouter (
  FuncEq(..)
 ) where
 
---import Data.Generics hiding ((:+:), Inl, Inr)
 import Data.Data
--- import Data.Typeable
 
 -- Thank you, Wouter Swierstra
-
-{-
---------------------------------
--- Records 
---------------------------------
-infixr 6 :@:
-data (f :@: g) e = Recb (f e) (g e) deriving Eq
-
-instance (Functor f, Functor g) => Functor (f :@: g) where
-    fmap f (Recb r1 r2) = Recb (fmap f r1) (fmap f r2)
-
-class (Functor sub, Functor sup) => sub :<@: sup where
-    rGet :: sup a -> sub a
-    rSet :: sub a -> sup a -> sup a
-
-instance Functor f => (:<@:) f f where
-    rGet = id
-    rSet x _ = x
-
-instance (Functor f, Functor g) => (:<@:) f (f :@: g) where
-    rGet (Recb x y) = x
-    rSet x (Recb _ y) = Recb x y
-
-instance (Functor f, Functor g, Functor h, (:<@:) f g) =>
-    (:<@:) f (h :@: g) where
-    rGet (Recb _ y) = rGet y
-    rSet x (Recb y z) = Recb y (rSet x z)
-
-
-data Record f = Rec (f (Record f))
-
-class Functor f => RecordField f where
-    dVal :: f a
-
-instance (RecordField f, RecordField g) =>
-    RecordField (f :@: g) where
-    dVal = Recb dVal dVal
-
-dRec :: RecordField f => Record f
-dRec = Rec dVal
-
-recGet (Rec r) = rGet r
-recSet v (Rec r) = Rec $ rSet v r
--}
 
 --------------------------------
 -- Expressions 
 --------------------------------
 
 infixr 6 :+:
-data (f :+: g) e = Inl (f e) | Inr (g e) deriving (Data, Eq)
+data (f :+: g) e = Inl (f e) | Inr (g e) deriving (Eq)
 
 instance (Functor f, Functor g) => Functor (f :+: g) where
     fmap f (Inl e1) = Inl (fmap f e1)
@@ -74,6 +28,14 @@ instance (Typeable1 f, Typeable1 g) => Typeable1 (f :+: g) where
         Inl x = (Inl undefined) `asTypeOf` l
         Inr y = (Inr undefined) `asTypeOf` l
 
+deriving instance (
+   Typeable1 f,
+    Typeable1 g,
+    Typeable e,
+    Data (f e),
+    Data (g e))
+        => Data ((f :+: g) e)
+ 
 
 class (Functor sub, Functor sup) => sub :<: sup where
     inj :: sub a -> sup a
@@ -91,6 +53,7 @@ newtype Expr f = In (f (Expr f))
 instance Typeable1 f => Typeable (Expr f) where
     typeOf e = mkTyConApp (mkTyCon "Planning.Wouter.Expr") [typeOf1 x]
         where In x = (In undefined) `asTypeOf` e
+deriving instance (Typeable1 a, Data (a (Expr a))) => Data (Expr a)
 
 inject :: (g :<: f) => g (Expr f) -> Expr f
 inject = In . inj

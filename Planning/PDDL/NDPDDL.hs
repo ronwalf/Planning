@@ -19,6 +19,15 @@ type NDEffectD =
 
 type NDEffectDExpr = Expr NDEffectD
 
+ndEffectDParsing :: (OneOf :<: f,
+        Not :<: f,
+        And :<: f,
+        When GDExpr :<: f,
+        ForAll TypedVarExpr :<: f,
+        Atomic TermExpr :<: f) =>
+    TokenParser st
+    -> CharParser st (Expr f)
+    -> CharParser st (Expr f)
 ndEffectDParsing mylex thisP =
     oneOfParser mylex thisP <|>
     effectDParsing mylex thisP
@@ -38,11 +47,11 @@ type NDPDDLDomain = Domain ConstraintGDExpr NDPDDLItems
 ndpddlDomainParser :: CharParser NDPDDLDomain NDPDDLDomain
 ndpddlDomainParser =
     let
-        constraintP = constraintGDParser lexer :: CharParser NDPDDLDomain ConstraintGDExpr
-        prefGDP = prefGDParser lexer :: CharParser NDPDDLDomain PreferenceGDExpr
-        effectP = ndEffectDParser lexer :: CharParser NDPDDLDomain NDEffectDExpr
+        constraintP = constraintGDParser pddlLexer :: CharParser NDPDDLDomain ConstraintGDExpr
+        prefGDP = prefGDParser pddlLexer :: CharParser NDPDDLDomain PreferenceGDExpr
+        effectP = ndEffectDParser pddlLexer :: CharParser NDPDDLDomain NDEffectDExpr
     in
-    domainParser lexer
-        (domainInfoParser lexer constraintP)
-        (actionParser lexer prefGDP effectP)
+    domainParser pddlLexer
+        (domainInfoParser pddlLexer constraintP)
+        (actionParser pddlLexer prefGDP effectP)
 

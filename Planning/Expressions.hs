@@ -55,8 +55,6 @@ module Planning.Expressions (
     Unknown(..), eUnknown
 ) where
 
---import Data.Generics hiding ((:+:), Inl, Inr)
---import Data.Generics (Data, Typeable, Typeable1, Typeable2)
 import Data.Data
 
 import Planning.Wouter
@@ -65,7 +63,6 @@ import Planning.Wouter
 -- Term Holders
 ---------------------------------
 data Const e = Const String deriving (Data, Eq, Typeable)
-----deriving instance Typeable1 Const
 instance Functor Const where
     fmap _ (Const x) = Const x
 instance FuncEq Const where
@@ -74,7 +71,6 @@ eConst :: (Const :<: f) => String -> Expr f
 eConst x = inject (Const x)
 
 data Var e = Var String deriving (Data, Eq, Typeable)
---deriving instance Typeable1 Var
 instance Functor Var where
     fmap _ (Var x) = Var x
 instance FuncEq Var where
@@ -83,7 +79,6 @@ eVar :: (Var :<: f) => String -> Expr f
 eVar x = inject (Var x)
 
 data Function e = Function String [e] deriving (Data, Eq, Typeable)
---deriving instance Typeable1 Function
 instance Functor Function where
     fmap f (Function n tl) = Function n $ map f tl
 instance FuncEq Function where
@@ -96,7 +91,6 @@ eFunc n tl = inject (Function n tl)
 ---------------------------------------
 
 data Typed t e = Typed t (Expr Const) deriving (Data, Eq, Typeable)
---deriving instance Typeable2 Typed
 instance Functor (Typed t) where
     fmap _ (Typed e t) = Typed e t
 instance Eq t => FuncEq (Typed t) where
@@ -134,7 +128,6 @@ removeType = foldExpr untype
 --------------------------------------------------------
 
 data Atomic t e = Atomic String [t] deriving (Data, Eq, Typeable)
---deriving instance Typeable2 Atomic
 instance Functor (Atomic a) where
     fmap _ (Atomic p tl) = Atomic p tl
 instance (Eq t) => FuncEq (Atomic t) where
@@ -143,7 +136,6 @@ eAtomic :: (Atomic t :<: f) => String -> [t] -> Expr f
 eAtomic p tl = inject (Atomic p tl)
 
 data Not e = Not e deriving (Data, Eq, Typeable)
---deriving instance Typeable1 Not
 instance Functor Not where
     fmap f (Not e) = Not $ f e
 instance FuncEq Not where
@@ -155,7 +147,6 @@ eNot e = inject (Not e)
 -- First Order Logic Connectives 
 ---------------------------------------
 data And e = And [e] deriving (Data, Eq, Typeable)
---deriving instance Typeable1 And
 instance Functor And where
     fmap f (And el) = And $ map f el
 instance FuncEq And where
@@ -165,7 +156,6 @@ eAnd [e] = e
 eAnd el = inject (And el)
 
 data Or e = Or [e] deriving (Data, Eq, Typeable)
---deriving instance Typeable1 Or
 instance Functor Or where
     fmap f (Or el) = Or $ map f el
 instance FuncEq Or where
@@ -175,7 +165,6 @@ eOr [e] = e
 eOr el = inject (Or el)
 
 data Imply e = Imply e e deriving (Data, Eq, Typeable)
---deriving instance Typeable1 Imply
 instance Functor Imply where
     fmap f (Imply e1 e2) = Imply (f e1) (f e2)
 instance FuncEq Imply where
@@ -184,7 +173,6 @@ eImply :: (Imply :<: f) => Expr f -> Expr f -> Expr f
 eImply e1 e2 = inject (Imply e1 e2)
 
 data ForAll v e = ForAll [v] e deriving (Data, Eq, Typeable)
---deriving instance Typeable2 ForAll
 instance Functor (ForAll vl) where
     fmap f (ForAll vl e) = ForAll vl $ f e
 instance Eq v => FuncEq (ForAll v) where
@@ -194,7 +182,6 @@ eForAll [] e = e
 eForAll vl e = inject (ForAll vl e)
 
 data Exists v e = Exists [v] e deriving (Data, Eq, Typeable)
---deriving instance Typeable2 Exists
 instance Functor (Exists vl) where
     fmap f (Exists vl e) = Exists vl $ f e
 instance Eq v => FuncEq (Exists v) where
@@ -205,7 +192,6 @@ eExists vl e = inject (Exists vl e)
 
 
 data When p e = When p e deriving (Data, Eq, Typeable)
---deriving instance Typeable2 When
 instance Functor (When p) where
     fmap f (When p e) = When p $ f e
 instance Eq p => FuncEq (When p) where
@@ -217,7 +203,6 @@ eWhen p e = inject (When p e)
 -- Preferences
 ----------------------------------
 data Preference e = Preference (Maybe String) e deriving (Data, Eq, Typeable)
---deriving instance Typeable1 Preference
 instance Functor Preference where
     fmap f (Preference n e) = Preference n $ f e
 instance FuncEq Preference where
@@ -233,7 +218,6 @@ class Functor f => UnPreference g f where
 -- Timing
 ----------------------------------
 data Start e = Start deriving (Data, Eq, Typeable)
---deriving instance Typeable1 Start
 instance Functor Start where
     fmap _ Start = Start
 instance FuncEq Start where
@@ -242,7 +226,6 @@ eStart :: (:<:) Start f => Expr f
 eStart = inject Start
 
 data End e = End deriving (Data, Eq, Typeable)
---deriving instance Typeable1 End
 instance Functor End where
     fmap _ End = End
 instance FuncEq End where
@@ -251,7 +234,6 @@ eEnd :: (:<:) End f => Expr f
 eEnd = inject End
 
 data All e = All deriving (Data, Eq, Typeable)
---deriving instance Typeable1 All
 instance Functor All where
     fmap _ All = All
 instance FuncEq All where
@@ -261,7 +243,6 @@ eAll = inject All
 
 
 data At t e = At t e deriving (Data, Eq, Typeable)
---deriving instance Typeable2 At
 instance Functor (At t) where
     fmap f (At t e) = At t $ f e
 instance Eq t => FuncEq (At t) where
@@ -270,7 +251,6 @@ eAt :: (At t :<: f) => t -> Expr f -> Expr f
 eAt t e = inject (At t e)
 
 data Over t e = Over t e deriving (Data, Eq, Typeable)
---deriving instance Typeable2 Over
 instance Functor (Over t) where
     fmap f (Over t e) = Over t $ f e
 instance Eq t => FuncEq (Over t) where
@@ -279,7 +259,6 @@ eOver :: (Over t :<: f) => t -> Expr f -> Expr f
 eOver t e = inject (Over t e)
 
 data Always e = Always e deriving (Data, Eq, Typeable)
---deriving instance Typeable1 Always
 instance Functor Always where
     fmap f (Always e) = Always $ f e
 instance FuncEq Always where
@@ -288,7 +267,6 @@ eAlways :: (Always :<: f) => Expr f -> Expr f
 eAlways e = inject (Always e)
 
 data Sometime e = Sometime e deriving (Data, Eq, Typeable)
---deriving instance Typeable1 Sometime
 instance Functor Sometime where
     fmap f (Sometime e) = Sometime $ f e
 instance FuncEq Sometime where
@@ -297,7 +275,6 @@ eSometime :: (Sometime :<: f) => Expr f -> Expr f
 eSometime e = inject (Sometime e)
 
 data Within e = Within Double e deriving (Data, Eq, Typeable)
---deriving instance Typeable1 Within
 instance Functor Within where
     fmap f (Within n e) = Within n $ f e
 instance FuncEq Within where
@@ -306,7 +283,6 @@ eWithin :: (Within :<: f) => Double -> Expr f -> Expr f
 eWithin d e = inject (Within d e)
 
 data AtMostOnce e = AtMostOnce e deriving (Data, Eq, Typeable)
---deriving instance Typeable1 AtMostOnce
 instance Functor AtMostOnce where
     fmap f (AtMostOnce e) = AtMostOnce $ f e
 instance FuncEq AtMostOnce where
@@ -315,7 +291,6 @@ eAtMostOnce :: (AtMostOnce :<: f) => Expr f -> Expr f
 eAtMostOnce e = inject (AtMostOnce e)
 
 data SometimeAfter e = SometimeAfter e e deriving (Data, Eq, Typeable)
---deriving instance Typeable1 SometimeAfter
 instance Functor SometimeAfter where
     fmap f (SometimeAfter e1 e2) = SometimeAfter (f e1) (f e2)
 instance FuncEq SometimeAfter where
@@ -324,7 +299,6 @@ eSometimeAfter :: (SometimeAfter :<: f) => Expr f -> Expr f -> Expr f
 eSometimeAfter e1 e2 = inject (SometimeAfter e1 e2)
 
 data SometimeBefore e = SometimeBefore e e deriving (Data, Eq, Typeable)
---deriving instance Typeable1 SometimeBefore
 instance Functor SometimeBefore where
     fmap f (SometimeBefore e1 e2) = SometimeBefore (f e1) (f e2)
 instance FuncEq SometimeBefore where
@@ -333,7 +307,6 @@ eSometimeBefore :: (SometimeBefore :<: f) => Expr f -> Expr f -> Expr f
 eSometimeBefore e1 e2 = inject (SometimeBefore e1 e2)
 
 data AlwaysWithin e = AlwaysWithin Double e e deriving (Data, Eq, Typeable)
---deriving instance Typeable1 AlwaysWithin
 instance Functor AlwaysWithin where
     fmap f (AlwaysWithin d e1 e2) = AlwaysWithin d (f e1) (f e2)
 instance FuncEq AlwaysWithin where
@@ -343,7 +316,6 @@ eAlwaysWithin :: (AlwaysWithin :<: f) => Double -> Expr f -> Expr f -> Expr f
 eAlwaysWithin d e1 e2 = inject (AlwaysWithin d e1 e2)
 
 data HoldDuring e = HoldDuring Double Double e deriving (Data, Eq, Typeable)
---deriving instance Typeable1 HoldDuring
 instance Functor HoldDuring where
     fmap f (HoldDuring b e p) = HoldDuring b e $ f p
 instance FuncEq HoldDuring where
@@ -354,7 +326,6 @@ eHoldDuring b e p = inject (HoldDuring b e p)
 
 
 data HoldAfter e = HoldAfter Double e deriving (Data, Eq, Typeable)
---deriving instance Typeable1 HoldAfter
 instance Functor HoldAfter where
     fmap f (HoldAfter n e) = HoldAfter n $ f e
 instance FuncEq HoldAfter where
@@ -367,7 +338,6 @@ eHoldAfter d e = inject (HoldAfter d e)
 -- Partial Observability
 ----------------------------------
 data OneOf e = OneOf [e] deriving (Data, Eq, Typeable)
---deriving instance Typeable1 OneOf
 instance Functor OneOf where
     fmap f (OneOf e) = OneOf $ map f e
 instance FuncEq OneOf where
@@ -376,7 +346,6 @@ eOneOf :: (OneOf :<: f) => [Expr f] -> Expr f
 eOneOf e = inject (OneOf e)
 
 data Unknown e = Unknown e deriving (Data, Eq, Typeable)
---deriving instance Typeable1 Unknown
 instance Functor Unknown where
     fmap f (Unknown e) = Unknown $ f e
 instance FuncEq Unknown where
@@ -384,8 +353,3 @@ instance FuncEq Unknown where
 eUnknown :: (Unknown :<: f) => Expr f -> Expr f
 eUnknown e = inject (Unknown e)
 
-
-----------------------------------
--- Data instance derivations
-----------------------------------
-deriving instance (Typeable1 a, Data (a (Expr a))) => Data (Expr a)
