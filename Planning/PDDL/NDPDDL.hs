@@ -1,7 +1,7 @@
 module Planning.PDDL.NDPDDL (
     module Planning.PDDL.PDDL3_0,
     NDPDDLDomain,
-    NDPDDLItems,
+    NDPDDLItem,
     NDPDDLAction,
     NDEffectD,
     NDEffectDExpr,
@@ -39,9 +39,9 @@ ndEffectDParser mylex =
 
 type NDPDDLAction = Action PreferenceGDExpr NDEffectDExpr
 
-type NDPDDLItems = Expr (DomainItem NDPDDLAction)
+type NDPDDLItem = Expr (DomainItem NDPDDLAction)
 
-type NDPDDLDomain = Domain ConstraintGDExpr NDPDDLItems
+type NDPDDLDomain = Domain ConstraintGDExpr NDPDDLItem
 
 
 ndpddlDomainParser :: CharParser NDPDDLDomain NDPDDLDomain

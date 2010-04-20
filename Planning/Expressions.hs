@@ -104,21 +104,21 @@ type TypedVarExpr = Expr (TypedVar :+: Var)
 type TypedFunc = Typed (Expr Function)
 type TypedFuncExpr = Expr (TypedFunc :+: Function :+: Var :+: TypedVar)
 
-class (Functor f, Functor g) => Untypeable g f where
+class (Functor f, Functor g) => Untypeable f g where
     untype :: f (Expr g) -> Expr g
-instance (Functor h, Untypeable h f, Untypeable h g) => Untypeable h (f :+: g) where
+instance (Functor h, Untypeable f h, Untypeable g h) => Untypeable (f :+: g) h where
     untype (Inl x) = untype x
     untype (Inr y) = untype y
-instance (:<:) Const g => Untypeable g (Typed (Expr Const)) where
+instance (:<:) Const g => Untypeable (Typed (Expr Const)) g where
     untype (Typed (In (Const c)) _) = eConst c
-instance (:<:) Var g => Untypeable g (Typed (Expr Var)) where
+instance (:<:) Var g => Untypeable (Typed (Expr Var)) g where
     untype (Typed (In (Var v)) _ ) = eVar v
-instance (:<:) Const g => Untypeable g Const where
+instance (:<:) Const g => Untypeable Const g where
     untype (Const c) = eConst c
-instance (:<:) Var g => Untypeable g Var where
+instance (:<:) Var g => Untypeable Var g where
     untype (Var v) = eVar v
 
-removeType :: Untypeable g f => Expr f -> Expr g
+removeType :: Untypeable f g => Expr f -> Expr g
 removeType = foldExpr untype
 
 

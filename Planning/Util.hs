@@ -115,3 +115,67 @@ instance FreeVarsFindable Preference where
 instance FreeVarsFindable f => FreeVarsFindable (When (Expr f)) where
     findFreeVars' (When p e) = findFreeVars p ++ e
 
+
+
+-- Find all atoms in an expression
+class (Functor f) => AtomsFindable f g where
+    findAtoms' :: f [Expr (Atomic g)] -> [Expr (Atomic g)]
+findAtoms :: AtomsFindable f g => Expr f -> [Expr (Atomic g)]
+findAtoms = foldExpr findAtoms'
+
+instance (AtomsFindable f g, AtomsFindable h g) => AtomsFindable (f :+: h) g where
+    findAtoms' (Inl x) = findAtoms' x
+    findAtoms' (Inr y) = findAtoms' y
+instance AtomsFindable (Atomic g) g where
+    findAtoms' (Atomic p tl) = [eAtomic p tl]
+instance AtomsFindable And g where
+    findAtoms' (And el) = concat el
+instance AtomsFindable Or g where
+    findAtoms' (Or el) = concat el
+instance AtomsFindable Not g where
+    findAtoms' (Not e) = e
+instance AtomsFindable (ForAll t) g where
+    findAtoms' (ForAll _ e) = e
+instance AtomsFindable (Exists t) g where
+    findAtoms' (Exists _ e) = e 
+instance AtomsFindable Imply g where
+    findAtoms' (Imply e1 e2) = e1 ++ e2
+instance AtomsFindable Preference g where
+    findAtoms' (Preference _ e) = e
+instance AtomsFindable f g => AtomsFindable (When (Expr f)) g where
+    findAtoms' (When p e) = findAtoms p ++ e
+instance AtomsFindable OneOf g where
+    findAtoms' (OneOf el) = concat el
+
+
+-- Break apart OneOf expressions into a list of possibilities
+class (Functor f) => OneOfFindable f g where
+    findOneOf' :: f [Expr g] -> [Expr g]
+findOneOf :: OneOfFindable f g => Expr f -> [Expr g]
+findOneOf = foldExpr findOneOf'
+
+instance (OneOfFindable f g, OneOfFindable h g) => OneOfFindable (f :+: h) g where
+    findOneOf' (Inl x) = findOneOf' x
+    findOneOf' (Inr y) = findOneOf' y
+instance (Atomic t :<: g) => OneOfFindable (Atomic t) g where
+    findOneOf' (Atomic p tl) = [eAtomic p tl]
+instance (And :<: g, Conjuncts g g) => OneOfFindable And g where
+    findOneOf' (And el) = map (eAnd . conjuncts) $ cdots el
+        where
+            cdots :: [[Expr g]] -> [Expr g]
+            cdots [] = []
+            cdots [h] = h
+            cdots (h : n : t) =
+                cdots ([ eAnd [p1, p2] | p1 <- h, p2 <- n ] : t)
+instance (Not :<: g) => OneOfFindable Not g where
+    findOneOf' (Not e) = map eNot e -- Technically wrong, but what the heck would not oneOf mean, anyway?
+instance (ForAll t :<: g) => OneOfFindable (ForAll t) g where
+    findOneOf' (ForAll vl e) = map (eForAll vl) e
+instance (Exists t :<: g) => OneOfFindable (Exists t) g where
+    findOneOf' (Exists vl e) = map (eExists vl) e
+instance (When f :<: g) => OneOfFindable (When f) g where
+    findOneOf' (When p e) = map (eWhen p) e
+instance OneOfFindable OneOf g where
+    findOneOf' (OneOf el) = concat el
+
+

@@ -6,7 +6,7 @@ module Planning.PDDL.Representation (
     Domain(..),
     emptyDomain, 
     
-    DomainItem(..), domainItem,
+    DomainItem(..), domainItem, maybeItem,
 
     Action(..), defaultAction, 
 
@@ -255,6 +255,29 @@ instance PDDLDoc i => PDDLDoc (DomainItem (Expr i)) where
 domainItem :: (:<:) (DomainItem c) f => c -> Expr f
 domainItem i = inject $ DomainItem i
 
+class (Functor f) => MaybeItem f c where
+    maybeItem' :: f (Maybe c) -> Maybe c
+
+maybeItem :: (MaybeItem f c) => Expr f -> Maybe c
+maybeItem = foldExpr maybeItem'
+
+instance (MaybeItem f c, MaybeItem g c) => MaybeItem (f :+: g) c where
+    maybeItem' (Inr x) = maybeItem' x
+    maybeItem' (Inl x) = maybeItem' x
+{-
+instance (DomainItem c :<: f, Functor g) => MaybeItem (f :+: g) c where
+    maybeItem' (Inr x) = maybeItem' x
+    maybeItem' _ = Nothing
+
+instance (DomainItem c :<: g, Functor f) => MaybeItem (f :+: g) c where
+    maybeItem' (Inr x) = maybeItem' x
+    maybeItem' _ = Nothing
+-}
+instance MaybeItem (DomainItem c) c where
+    maybeItem' (DomainItem c) = Just c
+
+instance MaybeItem (DomainItem d) c where
+    maybeItem' _ = Nothing
 
 ------------------------------
 -- Action Description

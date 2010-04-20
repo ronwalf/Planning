@@ -6,8 +6,6 @@
 module Planning.Records where
 
 import Data.Generics
---import Data.Generics.Aliases
---import Data.Generics.Schemes
 import Control.Monad
 import Data.Maybe
 

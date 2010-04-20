@@ -4,7 +4,7 @@ module Planning.PDDL.PDDL3_0 (
     ConstTerm, ConstTermExpr, constTermParser,
     InitLiteral, InitLiteralExpr, initLiteralParser,
 
-    PDDLAtom,
+    PDDLAtom, pddlAtomParser,
 
     GD, GDExpr,
     DAGD, DAGDExpr,
@@ -242,7 +242,7 @@ pddlProblemParser :: CharParser PDDLProblem PDDLProblem
 pddlProblemParser =
     let
         -- constP = constParser pddlLexer :: CharParser PDDLProblem ConstTermExpr
-        initP = initLiteralParser pddlLexer :: CharParser PDDLProblem InitLiteralExpr
+        initP = T.parens pddlLexer $ initLiteralParser pddlLexer :: CharParser PDDLProblem InitLiteralExpr
         goalP = prefGDParser pddlLexer :: CharParser PDDLProblem PreferenceGDExpr
         constraintP = constraintGDParser pddlLexer :: CharParser PDDLProblem ConstraintGDExpr
     in
