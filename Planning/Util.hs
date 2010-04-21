@@ -61,8 +61,8 @@ instance (Conjuncts f h, Conjuncts g h) => Conjuncts (f :+: g) h where
 
 instance (:<:) (Atomic t) g => Conjuncts (Atomic t) g where
     conjuncts' (Atomic p tl) = [eAtomic p tl]
-instance (:<:) And g => Conjuncts And g where 
-    conjuncts' (And el) = el
+instance ((:<:) And g, Conjuncts g g) => Conjuncts And g where 
+    conjuncts' (And el) = concatMap conjuncts el
 instance (:<:) Or g => Conjuncts Or g where
     conjuncts' (Or el) = [eOr el]
 instance (:<:) Not g => Conjuncts Not g where
@@ -77,6 +77,8 @@ instance (:<:) Preference g => Conjuncts Preference g where
     conjuncts' (Preference n e) = [ePreference n e]
 instance (:<:) (When p) g => Conjuncts (When p) g where
     conjuncts' (When p e) = [eWhen p e]
+instance (:<:) OneOf g => Conjuncts OneOf g where
+    conjuncts' (OneOf el) = [eOneOf el]
 
 class (Functor f) => FreeVarsFindable f where
     findFreeVars' :: f [Expr Var] -> [Expr Var]

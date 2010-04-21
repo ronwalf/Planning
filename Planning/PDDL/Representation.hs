@@ -224,7 +224,10 @@ instance (Data (Expr a), Data (Expr b), PDDLDoc a, PDDLDoc b) =>
     show domain = show $ parens $ ($$) (text "define") $ vcat $
         parens (text "domain" <+> text (getName domain)) :
          -- Requirement strings are prefixed with ':'
-        parens (sep $ map (text . (':':)) $ "requirements" : getRequirements domain) :
+        (if (null $ getRequirements domain) then empty else parens
+            (sep $ 
+             map (text . (':':)) $ 
+             "requirements" : getRequirements domain)) :
         parens (sep $ (text ":types") :
             [pddlDoc t | (In t) <- getTypes domain]) :
         parens (sep $ (text ":predicates") :
@@ -292,7 +295,7 @@ instance (Data p, Data e) => HasParameters TypedVarExpr (Action p e)
 instance (Data p, Data e) => HasPrecondition p (Action p e)
 instance (Data p, Data e) => HasEffect e (Action p e)
 defaultAction :: (Data p, Data e) => Action p e
-defaultAction = Action undefined (Parameters []) (Precondition Nothing) (Effect Nothing)
+defaultAction = Action (Name "empty") (Parameters []) (Precondition Nothing) (Effect Nothing)
 
 instance (Data (Expr p), Data (Expr e), PDDLDoc p, PDDLDoc e) => 
     PDDLDoc (DomainItem (Action (Expr p) (Expr e))) where
