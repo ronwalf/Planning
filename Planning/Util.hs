@@ -1,4 +1,12 @@
-{-# LANGUAGE OverlappingInstances, UndecidableInstances #-}
+{-# LANGUAGE
+    FlexibleContexts,
+    FlexibleInstances,
+    MultiParamTypeClasses,
+    OverlappingInstances,
+    ScopedTypeVariables,
+    TypeOperators,
+    UndecidableInstances 
+  #-}
 module Planning.Util where
 
 import Data.List

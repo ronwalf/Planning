@@ -1,4 +1,8 @@
-{-# LANGUAGE OverlappingInstances#-}
+{-# LANGUAGE
+    FlexibleContexts,
+    OverlappingInstances,
+    RankNTypes
+  #-}
 module Planning.PDDL.Parser (
     pddlLanguage,
     pddlLexer,

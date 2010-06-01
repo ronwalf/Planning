@@ -1,4 +1,15 @@
-{-# LANGUAGE OverlappingInstances, UndecidableInstances, DeriveDataTypeable #-}
+{-# LANGUAGE 
+    DeriveDataTypeable,
+    FlexibleContexts,
+    FlexibleInstances,
+    MultiParamTypeClasses,
+    OverlappingInstances,
+    RankNTypes,
+    StandaloneDeriving,
+    TypeOperators,
+    TypeSynonymInstances,
+    UndecidableInstances 
+  #-}
 module Planning.PDDL.Representation (
     module Planning.Expressions,
     module Planning.Records,

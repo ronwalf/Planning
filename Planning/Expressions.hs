@@ -1,4 +1,12 @@
-{-# LANGUAGE UndecidableInstances, StandaloneDeriving, DeriveDataTypeable #-}
+{-# LANGUAGE 
+    DeriveDataTypeable,
+    FlexibleContexts,
+    FlexibleInstances,
+    MultiParamTypeClasses,
+    StandaloneDeriving,
+    TypeOperators,
+    UndecidableInstances
+  #-}
 
 module Planning.Expressions (
     module Planning.Wouter,

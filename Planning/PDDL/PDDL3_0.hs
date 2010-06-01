@@ -1,3 +1,7 @@
+{-# LANGUAGE
+    FlexibleContexts,
+    TypeOperators
+  #-}
 module Planning.PDDL.PDDL3_0 (
     module Planning.PDDL.Representation,
     Term, TermExpr, termParser,

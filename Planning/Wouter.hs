@@ -1,4 +1,11 @@
-{-# LANGUAGE OverlappingInstances, UndecidableInstances #-}
+{-# LANGUAGE
+    FlexibleInstances,
+    MultiParamTypeClasses,
+    OverlappingInstances,
+    StandaloneDeriving,
+    TypeOperators,
+    UndecidableInstances 
+  #-}
 module Planning.Wouter (
  (:+:)(..),
  (:<:)(..),

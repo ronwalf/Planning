@@ -1,3 +1,8 @@
+{-# LANGUAGE
+    FlexibleContexts,
+    TypeOperators
+  #-}
+
 module Planning.PDDL.Pond (
     module Planning.PDDL.Representation,
     module Planning.PDDL.PDDL3_0,

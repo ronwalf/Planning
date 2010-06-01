@@ -1,3 +1,7 @@
+{-# LANGUAGE
+    FlexibleContexts,
+    TypeOperators
+  #-}
 module Planning.PDDL.NDPDDL (
     module Planning.PDDL.PDDL3_0,
     NDPDDLDomain,
