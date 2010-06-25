@@ -14,7 +14,7 @@ Executable pddlcheck
     Main-Is: pddlcheck.hs
     Build-Depends:
     GHC-Options:
-        -O -fcontext-stack=40 -Wall
+        -O -Wall
 
 Library
   Build-Depends:
@@ -27,4 +27,4 @@ Library
         Planning.PDDL.PDDL3_0, Planning.PDDL.Parser,
         Planning.PDDL.Representation, Planning.PDDL.Pond, Planning.PDDL.NDPDDL
   ghc-options:
-        -O -fcontext-stack=40 -Wall
+        -O -Wall

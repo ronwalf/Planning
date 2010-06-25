@@ -12,7 +12,8 @@ module Planning.Wouter (
  Expr(..),
  inject,
  foldExpr,
- FuncEq(..)
+ FuncEq(..),
+ FuncOrd(..)
 ) where
 
 import Data.Data
@@ -82,4 +83,17 @@ instance (FuncEq f, FuncEq g) => FuncEq (f :+: g) where
 
 instance (FuncEq f) => Eq (Expr f) where
     (In x) == (In y) = funcEq x y
+
+
+class (Functor f, FuncEq f) => FuncOrd f where
+    funcCompare:: FuncOrd g => f (Expr g) -> f (Expr g) -> Ordering
+
+instance (FuncOrd f, FuncOrd g) => FuncOrd (f :+: g) where
+    funcCompare (Inl x) (Inl y) = funcCompare x y
+    funcCompare (Inr x) (Inr y) = funcCompare x y
+    funcCompare (Inl _) (Inr _) = GT
+    funcCompare (Inr _) (Inl _) = LT
+
+instance (FuncOrd f) => Ord (Expr f) where
+    compare (In x) (In y) = funcCompare x y
 

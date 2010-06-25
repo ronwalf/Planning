@@ -1,3 +1,6 @@
+{-# OPTIONS_GHC
+    -fcontext-stack=30
+  #-}
 {-# LANGUAGE
     FlexibleContexts,
     TypeOperators
