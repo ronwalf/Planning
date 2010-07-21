@@ -25,6 +25,7 @@ Library
   Exposed-modules:
         Planning.Expressions, Planning.Records, Planning.Util, Planning.Wouter,
         Planning.PDDL.PDDL3_0, Planning.PDDL.Parser,
-        Planning.PDDL.Representation, Planning.PDDL.Pond, Planning.PDDL.NDPDDL
+        Planning.PDDL.Representation, 
+        Planning.PDDL.Pond, Planning.PDDL.NDPDDL, Planning.PDDL.FF
   ghc-options:
         -O -Wall
