@@ -21,7 +21,7 @@ skipTill end =
 ffOutParser :: (Atomic (Expr Const) :<: f) 
     => CharParser () (Maybe [Expr f])
 ffOutParser = do
-    skipTill (newline >> string "ff:")
+    skipTill (try $ newline >> string "ff: ")
     msg <- manyTill anyChar newline
     case msg of
         "found legal plan as follows" -> planParser >>= return . Just
@@ -33,16 +33,22 @@ planParser :: (Atomic (Expr Const) :<: f)
 planParser = do
     spaces
     _ <- string "step"
-    spaces
-    many stepParser
+    manyTill stepParser (try $ spaces >> string "time spent")
 
 stepParser :: (Atomic (Expr Const) :<: f)
     => CharParser () (Expr f)
 stepParser = do
-   skipMany1 digit
-   _ <- char ':'
-   _ <- space
-   act <- T.identifier pddlLexer
-   args <- manyTill (space >> constParser pddlLexer :: CharParser () (Expr Const)) newline
-   return $ eAtomic act args
+    spaces
+    skipMany1 digit
+    _ <- char ':'
+    _ <- space
+    act <- T.identifier pddlLexer
+    args <- manyTill cParser (try newline)
+    return $ eAtomic act args
+    where
+        cParser = do
+            spaces
+            name <- many1 (alphaNum <|> oneOf "_-")
+            return (eConst name :: Expr Const)
+
 

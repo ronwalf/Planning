@@ -1,4 +1,5 @@
 {-# LANGUAGE
+    DeriveDataTypeable,
     FlexibleInstances,
     MultiParamTypeClasses,
     OverlappingInstances,
