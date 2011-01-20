@@ -1,7 +1,13 @@
 {-# OPTIONS
- -fglasgow-exts
  #-}
-{-# LANGUAGE FlexibleInstances, FlexibleContexts, DeriveDataTypeable  #-}
+{-# LANGUAGE 
+    DeriveDataTypeable,
+    FlexibleContexts,
+    FlexibleInstances,
+    FunctionalDependencies,
+    MultiParamTypeClasses,
+    Rank2Types
+  #-}
 
 module Planning.Records where
 
