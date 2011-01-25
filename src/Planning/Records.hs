@@ -118,14 +118,14 @@ class (Data a, Typeable f) => HasGoal f a | a -> f where
     setGoal :: Maybe f -> a -> a
     setGoal pre r = fromJust $ greplace r (Goal pre)
 
-data Items f = Items [f] deriving (Eq, Show, Data, Typeable)
-unItems :: Items f -> [f]
-unItems (Items a) = a
-class (Data a, Typeable f) => HasItems f a | a -> f where
-    getItems :: a -> [f]
-    getItems = unItems . fromJust . gfind
-    setItems :: [f] -> a -> a
-    setItems pl r = fromJust $ greplace r (Items pl)
+data Actions f = Actions [f] deriving (Eq, Show, Data, Typeable)
+unActions :: Actions f -> [f]
+unActions (Actions a) = a
+class (Data a, Typeable f) => HasActions f a | a -> f where
+    getActions :: a -> [f]
+    getActions = unActions . fromJust . gfind
+    setActions :: [f] -> a -> a
+    setActions pl r = fromJust $ greplace r (Actions pl)
 
 
 data Parameters f = Parameters [f] deriving (Eq, Show, Data, Typeable)

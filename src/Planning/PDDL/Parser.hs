@@ -117,7 +117,7 @@ parseTypedVar mylex = do
         return $ eTyped (eVar vstr :: Expr Var) (eConst tstr :: Expr Const))
 
 -- | The domain parser takes a pddlLexer, an domain item parser, and a domain sink
-domainParser :: (HasName b, HasItems t b) =>
+domainParser :: (HasName b, HasActions t b) =>
     T.TokenParser b 
     -> CharParser b ()
     -> CharParser b ()
@@ -134,7 +134,7 @@ domainParser mylex infoParser domainItemParser = T.whiteSpace mylex >> T.parens 
         <|>
         domainItemParser
         )
-    updateState (\d -> setItems (reverse $ getItems d) d)
+    updateState (\d -> setActions (reverse $ getActions d) d)
     getState
     )
 
@@ -433,8 +433,7 @@ collect collector parser =
 
 actionParser :: (Data p,
         Data e,
-        HasItems (Expr f) st,
-        DomainItem (Action p e) :<: f) =>
+        HasActions (Action p e) st) =>
     T.TokenParser st
     -> CharParser st p
     -> CharParser st e
@@ -445,7 +444,7 @@ actionParser mylex precondP effectP = do
     name <- T.identifier mylex
     updates <- many infoParser
     let action = foldl (\ a t -> t a) (setName name defaultAction) updates
-    updateState (\d -> setItems (domainItem action : getItems d) d)
+    updateState (\d -> setActions (action : getActions d) d)
 
 actionInfoParser :: (HasParameters TypedVarExpr a,
         HasPrecondition a1 a,

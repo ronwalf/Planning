@@ -24,7 +24,6 @@ module Planning.PDDL.PDDL3_0 (
     PDDLDomain,
     PDDLProblem,
     PDDLAction,
-    PDDLItems,
 
     pddlDomainParser,
     pddlProblemParser
@@ -225,10 +224,7 @@ type DAEffectDExpr = Expr DAEffectD
 
 type PDDLAction = Action PreferenceGDExpr EffectDExpr
 
-type PDDLItems = Expr (DomainItem PDDLAction)
---deriving instance Data PDDLItems
-
-type PDDLDomain = Domain ConstraintGDExpr PDDLItems
+type PDDLDomain = Domain ConstraintGDExpr PDDLAction
 
 type PDDLProblem = Problem InitLiteralExpr PreferenceGDExpr ConstraintGDExpr
 
