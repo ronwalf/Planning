@@ -13,10 +13,12 @@ Build-Depends:        base
 Executable pddlcheck
     Main-Is: pddlcheck.hs
     Build-Depends:
+    Hs-Source-Dirs: src
     GHC-Options:
         -O -Wall
 
 Library
+  Hs-Source-Dirs: src
   Build-Depends:
         base >= 4.0.0.0 && < 5.0.0.0,
         parsec >= 2.1.0.1 && < 3,
