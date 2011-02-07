@@ -18,7 +18,7 @@ module Planning.Expressions (
     Function(..), eFunc,
 
     -- Typing
-    Typed(..), eTyped,
+    Typed(..), TypedExpression(..),
     TypedConst,
     TypedConstExpr,
     TypedVar,
@@ -28,16 +28,16 @@ module Planning.Expressions (
     Untypeable, removeType,
 
     -- First Order Logic
-    Atomic(..), eAtomic,
+    Atomic(..), AtomicExpression(..),
     And(..), eAnd,
     Imply(..), eImply,
     Not(..), eNot,
     Or(..), eOr,
 
-    Exists(..), eExists,
-    ForAll(..), eForAll,
+    Exists(..), ExistsExpression(..),
+    ForAll(..), ForAllExpression(..),
 
-    When(..), eWhen,
+    When(..), WhenExpression(..),
 
     -- Preferences
     Preference(..), ePreference,
@@ -47,8 +47,8 @@ module Planning.Expressions (
     Start(..), eStart,
     End(..), eEnd,
     All(..), eAll,
-    At(..), eAt,
-    Over(..), eOver,
+    At(..), AtExpression(..),
+    Over(..), OverExpression,
     Always(..), eAlways,
     Sometime(..), eSometime,
     Within(..), eWithin,
@@ -157,9 +157,9 @@ instance (Ord t) => FuncOrd (Atomic t) where
     funcCompare (Atomic p1 tl1) (Atomic p2 tl2) = 
         compare (p1, tl1) (p2, tl2)
 
-class AtomicExpression f t | f -> t where
+class AtomicExpression t f | f -> t where
     eAtomic :: String -> [t] -> Expr f
-instance (Atomic t :<: e) => AtomicExpression e t where
+instance (Atomic t :<: f) => AtomicExpression t f where
     eAtomic p tl = inject (Atomic p tl)
 
 data Not e = Not e deriving (Data, Eq, Typeable)
