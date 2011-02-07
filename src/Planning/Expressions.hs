@@ -2,6 +2,7 @@
     DeriveDataTypeable,
     FlexibleContexts,
     FlexibleInstances,
+    FunctionalDependencies,
     MultiParamTypeClasses,
     StandaloneDeriving,
     TypeOperators,
@@ -113,8 +114,10 @@ instance Eq t => FuncEq (Typed t) where
     funcEq (Typed e1 t1) (Typed e2 t2) = (e1 == e2) && (t1 == t2)
 instance Ord t => FuncOrd (Typed t) where
     funcCompare (Typed e1 t1) (Typed e2 t2) = compare (e1, t1) (e2, t2)
-eTyped :: (Typed t :<: f) => t -> Expr Const -> Expr f
-eTyped e t = inject (Typed e t)
+class (Typed t :<: f) => TypedExpression t f | f -> t where
+    eTyped :: t -> Expr Const -> Expr f
+instance (Typed t :<:f) => TypedExpression t f where
+    eTyped e t = inject (Typed e t)
 type TypedConst = Typed (Expr Const)
 type TypedConstExpr = Expr (TypedConst :+: Const)
 type TypedVar = Typed (Expr Var)
@@ -153,8 +156,11 @@ instance (Eq t) => FuncEq (Atomic t) where
 instance (Ord t) => FuncOrd (Atomic t) where
     funcCompare (Atomic p1 tl1) (Atomic p2 tl2) = 
         compare (p1, tl1) (p2, tl2)
-eAtomic :: (Atomic t :<: f) => String -> [t] -> Expr f
-eAtomic p tl = inject (Atomic p tl)
+
+class AtomicExpression f t | f -> t where
+    eAtomic :: String -> [t] -> Expr f
+instance (Atomic t :<: e) => AtomicExpression e t where
+    eAtomic p tl = inject (Atomic p tl)
 
 data Not e = Not e deriving (Data, Eq, Typeable)
 instance Functor Not where
@@ -210,9 +216,11 @@ instance Eq v => FuncEq (ForAll v) where
 instance Ord v => FuncOrd (ForAll v) where
     funcCompare (ForAll vl1 e1) (ForAll vl2 e2) =
         compare (vl1, e1) (vl2, e2)
-eForAll :: (ForAll v :<: f) => [v] -> Expr f -> Expr f
-eForAll [] e = e
-eForAll vl e = inject (ForAll vl e)
+class ForAllExpression v f | f -> v where
+    eForAll :: [v] -> Expr f -> Expr f
+instance (ForAll v :<: f) => ForAllExpression v f where
+    eForAll [] e = e
+    eForAll vl e = inject (ForAll vl e)
 
 data Exists v e = Exists [v] e deriving (Data, Eq, Typeable)
 instance Functor (Exists vl) where
@@ -222,9 +230,11 @@ instance Eq v => FuncEq (Exists v) where
 instance Ord v => FuncOrd (Exists v) where
     funcCompare (Exists vl1 e1) (Exists vl2 e2) =
         compare (vl1, e1) (vl2, e2)
-eExists :: (Exists v :<: f) => [v] -> Expr f -> Expr f
-eExists [] e = e
-eExists vl e = inject (Exists vl e)
+class ExistsExpression v f | f -> v where
+    eExists :: [v] -> Expr f -> Expr f
+instance (Exists v :<: f) => ExistsExpression v f where
+    eExists [] e = e
+    eExists vl e = inject (Exists vl e)
 
 
 data When p e = When p e deriving (Data, Eq, Typeable)
@@ -235,8 +245,10 @@ instance Eq p => FuncEq (When p) where
 instance Ord p => FuncOrd (When p) where
     funcCompare (When p1 e1) (When p2 e2) = 
         compare (p1, e1) (p2, e2)
-eWhen :: (When p :<: f) => p -> Expr f -> Expr f
-eWhen p e = inject (When p e)
+class WhenExpression p f | f -> p where
+    eWhen :: p -> Expr f -> Expr f
+instance (When p :<: f) => WhenExpression p f where
+    eWhen p e = inject (When p e)
 
 ----------------------------------
 -- Preferences
@@ -298,8 +310,10 @@ instance Eq t => FuncEq (At t) where
 instance Ord t => FuncOrd (At t) where
     funcCompare (At t1 e1) (At t2 e2) = 
         compare (t1, e1) (t2, e2)
-eAt :: (At t :<: f) => t -> Expr f -> Expr f
-eAt t e = inject (At t e)
+class AtExpression t f | f -> t where
+    eAt :: t -> Expr f -> Expr f
+instance (At t :<: f) => AtExpression t f where
+    eAt t e = inject (At t e)
 
 data Over t e = Over t e deriving (Data, Eq, Typeable)
 instance Functor (Over t) where
@@ -309,8 +323,10 @@ instance Eq t => FuncEq (Over t) where
 instance Ord t => FuncOrd (Over t) where
     funcCompare (Over t1 e1) (Over t2 e2) = 
         compare (t1, e1) (t2, e2)
-eOver :: (Over t :<: f) => t -> Expr f -> Expr f
-eOver t e = inject (Over t e)
+class OverExpression t f | t -> f where
+    eOver :: t -> Expr f -> Expr f
+instance (Over t :<: f) => OverExpression t f where
+    eOver t e = inject (Over t e)
 
 data Always e = Always e deriving (Data, Eq, Typeable)
 instance Functor Always where
