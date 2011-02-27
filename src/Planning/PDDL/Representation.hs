@@ -25,7 +25,7 @@ module Planning.PDDL.Representation (
 
     PDDLDoc(..),
     PDDLDocExpr(..),
-    docMaybe
+    docMaybe, docNonEmpty
 ) where
 
 import Data.Data
@@ -196,15 +196,14 @@ instance PDDLDocExpr Unknown where
         pddlDoc e]
 
 
-docNonEmpty :: PDDLDocExpr f => String -> [Expr f] -> Doc
+docNonEmpty :: PDDLDoc f => String -> [f] -> Doc
 docNonEmpty name ol =
     if (null ol) then empty else parens $ sep $
-        text name :
-        [ pddlDocExpr x | In x <- ol ]
+        text name : map pddlDoc ol
 
-docMaybe :: PDDLDocExpr f => String -> Maybe (Expr f) -> Doc
+docMaybe :: PDDLDoc f => String -> Maybe f -> Doc
 docMaybe _ Nothing = empty
-docMaybe name (Just (In x)) = sep $ [ text name, pddlDocExpr x ]
+docMaybe name (Just x) = sep $ [ text name, pddlDoc x ]
 
 
 ------------------------------
@@ -230,9 +229,9 @@ instance (Data a, Data b) => HasFunctions TypedFuncExpr (Domain a b)
 instance (Data a, Data b) => HasConstraints a (Domain a b)
 instance (Data a, Data b) => HasActions b (Domain a b)
 
-instance (Data (Expr a), Data (Expr b), PDDLDocExpr a, PDDLDocExpr b) => 
-    Show (Domain (Expr a) (Expr b)) where
-    show domain = show $ parens $ ($$) (text "define") $ vcat $
+instance (Data a, Data b, PDDLDoc a, PDDLDoc b) =>
+    PDDLDoc (Domain a b) where
+    pddlDoc domain = parens $ ($$) (text "define") $ vcat $
         parens (text "domain" <+> text (getName domain)) :
          -- Requirement strings are prefixed with ':'
         (if (null $ getRequirements domain) then empty else parens
@@ -240,11 +239,13 @@ instance (Data (Expr a), Data (Expr b), PDDLDocExpr a, PDDLDocExpr b) =>
              map (text . (':':)) $ 
              "requirements" : getRequirements domain)) :
         parens (sep $ (text ":types") :
-            [pddlDocExpr t | (In t) <- getTypes domain]) :
+            map pddlDoc (getTypes domain)) :
         parens (sep $ (text ":predicates") :
-            [pddlDocExpr p | (In p) <- getPredicates domain]) :
+            map pddlDoc (getPredicates domain)) :
+        maybe empty (\constr -> parens $ sep [text ":constraints", pddlDoc constr])
+            (getConstraints domain) :
         space :
-        intersperse space [pddlDocExpr x | In x <- getActions domain]
+        intersperse space (map pddlDoc $ getActions domain)
 
 emptyDomain :: forall a b. Domain a b
 emptyDomain = Domain 
@@ -272,11 +273,12 @@ instance (Data p, Data e) => HasEffect e (Action p e)
 defaultAction :: (Data p, Data e) => Action p e
 defaultAction = Action (Name "empty") (Parameters []) (Precondition Nothing) (Effect Nothing)
 
-instance (Data (Expr p), Data (Expr e), PDDLDocExpr p, PDDLDocExpr e) => 
-    PDDLDoc (Action (Expr p) (Expr e)) where
+--instance (Data (Expr p), Data (Expr e), PDDLDocExpr p, PDDLDocExpr e) => 
+--    PDDLDoc (Action (Expr p) (Expr e)) where
+instance (Data p, Data e, PDDLDoc p, PDDLDoc e) => PDDLDoc (Action p e) where
     pddlDoc a = parens $ sep [
         text ":action" <+> (text $ getName a),
-        text ":parameters" <+> (parens $ hsep [ pddlDocExpr v | (In v) <- getParameters a]),
+        text ":parameters" <+> (parens $ hsep $ map pddlDoc $ getParameters a), 
         docMaybe ":precondition" $ getPrecondition a,
         docMaybe ":effect" $ getEffect a]
 
@@ -302,11 +304,14 @@ instance (Data a, Data b, Data c) => HasInitial a (Problem a b c)
 instance (Data a, Data b, Data c) => HasGoal b (Problem a b c)
 instance (Data a, Data b, Data c) => HasConstraints c (Problem a b c)
 
-instance 
-    (Data (Expr a), Data (Expr b), Data (Expr c),
-     PDDLDocExpr a, PDDLDocExpr b, PDDLDocExpr c) =>
-    Show (Problem (Expr a) (Expr b) (Expr c)) where
-    show prob = show $ parens $ sep $
+--instance 
+--    (Data (Expr a), Data (Expr b), Data (Expr c),
+--     PDDLDocExpr a, PDDLDocExpr b, PDDLDocExpr c) =>
+--    Show (Problem (Expr a) (Expr b) (Expr c)) where
+instance (Data a, Data b, Data c,
+        PDDLDoc a, PDDLDoc b, PDDLDoc c) =>
+        PDDLDoc (Problem a b c) where
+    pddlDoc prob = parens $ sep $
         text "define" :
         (parens $ text "problem" <+> (text $ getName prob)) :
         (parens $ text ":domain" <+> (text $ getDomainName prob)) :
