@@ -10,6 +10,7 @@
 module Planning.Util where
 
 import Data.List
+import Data.Maybe
 
 import Planning.Expressions
 
@@ -187,5 +188,100 @@ instance (When f :<: g) => OneOfFindable (When f) g where
     findOneOf' (When p e) = map (eWhen p) e
 instance OneOfFindable OneOf g where
     findOneOf' (OneOf el) = concat el
+
+-- Variable Subsitution
+class (Functor f) => TermSubstitution t f g where
+    substituteTerm' :: [(Expr Var, t)] -> f (Expr g) -> Expr g
+substituteTerm :: TermSubstitution t f f => [(Expr Var, t)] -> Expr f -> Expr f
+substituteTerm vsl (In e) = substituteTerm' vsl e
+
+instance (TermSubstitution t f h, TermSubstitution t g h) => TermSubstitution t (f :+: g) h where
+    substituteTerm' vsl (Inl x) = substituteTerm' vsl x
+    substituteTerm' vsl (Inr y) = substituteTerm' vsl y
+
+instance (Var :<: t) => TermSubstitution (Expr t) Var t where
+    substituteTerm' vsl (Var v) = 
+        fromMaybe (eVar v) $ 
+        lookup (eVar v :: Expr Var) vsl
+
+instance (Const :<: f) => TermSubstitution t Const f where
+    substituteTerm' _ (Const c) = eConst c
+
+instance (Function :<: f, TermSubstitution t f f) => TermSubstitution t Function f where
+    substituteTerm' vsl (Function p tl) = eFunc p $ map (substituteTerm vsl) tl
+
+instance (Typed (Expr d) :<: f, TermSubstitution t d d, TermSubstitution t f f) => TermSubstitution t (Typed (Expr d)) f where
+    substituteTerm' vsl (Typed d t) = eTyped (substituteTerm vsl d) t
+
+instance (Atomic (Expr t) :<: f, TermSubstitution (Expr t) t t) => TermSubstitution (Expr t) (Atomic (Expr t)) f where
+    substituteTerm' vsl (Atomic p tl) = eAtomic p $ map (substituteTerm vsl) tl
+
+instance (And :<: f, TermSubstitution t f f) => TermSubstitution t And f where
+    substituteTerm' vsl (And el) = eAnd $ map (substituteTerm vsl) el
+        
+instance (Or :<: f, TermSubstitution t f f) => TermSubstitution t Or f where
+    substituteTerm' vsl (Or el) = eOr $ map (substituteTerm vsl) el
+
+instance (Not :<: f, TermSubstitution t f f) => TermSubstitution t Not f where
+    substituteTerm' vsl (Not e) = eNot $ substituteTerm vsl e
+
+instance (Untypeable v Var, ForAll (Expr v) :<: f, TermSubstitution t f f) => TermSubstitution t (ForAll (Expr v)) f where
+    substituteTerm' vsl (ForAll vl e) =
+        let vsl' = filter (\(v, _) -> not $ v `elem` map removeType vl) vsl in
+        eForAll vl $ substituteTerm vsl' e
+
+instance (Untypeable v Var, Exists (Expr v) :<: f, TermSubstitution t f f) => TermSubstitution t (Exists (Expr v)) f where
+    substituteTerm' vsl (Exists vl e) =
+        let vsl' = filter (\(v, _) -> not $ v `elem` map removeType vl) vsl in
+        eExists vl $ substituteTerm vsl' e
+
+instance (Imply :<: f, TermSubstitution t f f) => TermSubstitution t Imply f where
+    substituteTerm' vsl (Imply e1 e2) = eImply (substituteTerm vsl e1) (substituteTerm vsl e2)
+
+instance (Preference :<: f, TermSubstitution t f f) => TermSubstitution t Preference f where
+    substituteTerm' vsl (Preference n e) = ePreference n $ substituteTerm vsl e
+
+instance (When (Expr p) :<: f, TermSubstitution t p p, TermSubstitution t f f) => TermSubstitution t (When (Expr p)) f where
+    substituteTerm' vsl (When p e) = eWhen (substituteTerm vsl p) (substituteTerm vsl e)
+
+
+-- Check for constants (Not counting types)
+class (Functor f) => FindConstants f where
+    findConstants' :: f [Expr Const] -> [Expr Const]
+
+findConstants :: (FindConstants f) => Expr f -> [Expr Const]
+findConstants = foldExpr findConstants'
+
+instance (FindConstants f, FindConstants g) => FindConstants (f :+: g) where
+    findConstants' (Inl x) = findConstants' x
+    findConstants' (Inr y) = findConstants' y
+
+instance FindConstants Var where
+    findConstants' _ = []
+instance FindConstants Const where
+    findConstants' (Const c) = [eConst c]
+instance FindConstants Function where
+    findConstants' (Function _ tl) = concat tl
+instance (FindConstants t) => FindConstants (Typed (Expr t)) where
+    findConstants' (Typed d _) = findConstants d
+
+instance (FindConstants t) => FindConstants (Atomic (Expr t)) where
+    findConstants' (Atomic _ tl) = concatMap findConstants tl
+instance FindConstants And where
+    findConstants' (And el) = concat el
+instance FindConstants Or where
+    findConstants' (Or el) = concat el
+instance FindConstants Not where
+    findConstants' (Not e) = e
+instance FindConstants (ForAll v) where
+    findConstants' (ForAll _ e) = e
+instance FindConstants (Exists v) where
+    findConstants' (Exists _ e) = e
+instance FindConstants Imply where
+    findConstants' (Imply e1 e2) = e1 ++ e2
+instance FindConstants Preference where
+    findConstants' (Preference _ e) = e
+instance (FindConstants p) => FindConstants (When (Expr p)) where
+    findConstants' (When p e) = findConstants p ++ e
 
 
