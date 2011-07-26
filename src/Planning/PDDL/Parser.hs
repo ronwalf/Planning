@@ -4,8 +4,10 @@
     RankNTypes
   #-}
 module Planning.PDDL.Parser (
-    pddlLanguage,
-    pddlLexer,
+    pddlDescLanguage,
+    pddlExprLanguage,
+    pddlDescLexer,
+    pddlExprLexer,
     parseTypedConst,
     parseTypedVar,
     domainParser,
@@ -17,7 +19,6 @@ module Planning.PDDL.Parser (
     functionParser,
     predicateParser,
     stdStateParser,
-    conditionParser,
     atomicParser,
     andParser,
     orParser,
@@ -47,8 +48,8 @@ import Planning.PDDL.Representation
 comparisons :: [String]
 comparisons = ["-", "/", "*", "<", ">", "=", ">=", "<="]
 
-pddlLanguage :: T.LanguageDef st
-pddlLanguage = T.LanguageDef {
+baseLanguage :: T.LanguageDef st
+baseLanguage = T.LanguageDef {
     T.commentStart = "",
     T.commentEnd = "",
     T.commentLine = ";",
@@ -57,47 +58,34 @@ pddlLanguage = T.LanguageDef {
     T.identLetter = (alphaNum <|> oneOf "_-"),
     T.opStart = oneOf [],
     T.opLetter = oneOf [],
-    T.reservedNames = [ "-", -- Types
-        "and", "exists", "forall", "imply", "not", "when", -- Conditions
-        ":constants", ":constraints", "define", "domain", ":functions", ":predicates", ":requirements", ":types", -- Domain info
-        ":objects", "problem", ":domain",-- Problem info
-        ":action", ":effect", ":parameters", ":precondition" -- Action info
-        ] ++ comparisons,
+    T.reservedNames = [],
     T.reservedOpNames = [],
     T.caseSensitive = False
 }
 
-pddlLexer :: T.TokenParser a
-pddlLexer = T.makeTokenParser pddlLanguage
+pddlDescLanguage :: T.LanguageDef st
+pddlDescLanguage = baseLanguage {
+    T.reservedNames = [ 
+        "-", -- Types
+        ":constants", ":constraints", "define", "domain", ":functions", ":predicates", ":requirements", ":types", -- Domain info
+        ":objects", "problem", ":domain",-- Problem info
+        ":action", ":effect", ":parameters", ":precondition" -- Action info
+        ]
+}
 
-{-
-whiteSpace= T.whiteSpace pddlLexer
-lexeme    = T.lexeme pddlLexer
-symbol    = T.symbol pddlLexer
-natural   = T.natural pddlLexer
-parens    = T.parens pddlLexer
-semi      = T.semi pddlLexer
-identifier= T.identifier pddlLexer
-reserved  = T.reserved pddlLexer
-variable  = char '?' >> identifier
--}
+pddlExprLanguage :: T.LanguageDef st
+pddlExprLanguage = baseLanguage {
+    T.reservedNames = [
+        "-", -- Types
+        "and", "exists", "forall", "imply", "not", "when" -- Conditions
+        ]
+        ++ comparisons
+}
+pddlDescLexer :: T.TokenParser a
+pddlDescLexer = T.makeTokenParser pddlDescLanguage
 
-{-
-parseTyped :: ((:<:) f g, (:<:) (Typed (Expr f)) g) => T.TokenParser a -> CharParser a (Expr f) -> CharParser a (Expr g)
-parseTyped mylex itemP = do
-    item <- itemP
-    itemType <- option Nothing (do
-        T.reserved mylex "-"
-        liftM Just $ T.identifier mylex
-        )
-    let t = case itemType of
-            Just tname -> typed item tname
-            Nothing -> item
-    return t
-
-parseTypedList :: ((:<:) f g, (:<:) (Typed (Expr f)) g) => T.TokenParser a -> CharParser a (Expr f) -> CharParser a ([Expr g])
-parseTypedList mylex el = many (parseTyped mylex el)
--}
+pddlExprLexer :: T.TokenParser a
+pddlExprLexer = T.makeTokenParser pddlExprLanguage
 
 parseTypedConst :: T.TokenParser a -> CharParser a TypedConstExpr
 parseTypedConst mylex = do
@@ -182,52 +170,6 @@ stdStateParser :: (Atomic a :<: f) =>
 stdStateParser mylex termP = 
     T.parens mylex $ 
     atomicParser mylex termP
-
-
-conditionParser :: forall a p f. (
-    (:<:) And f,
-    (:<:) Or f,
-    (:<:) Not f,
-    (:<:) (Exists TypedVarExpr) f,
-    (:<:) (ForAll TypedVarExpr) f,
-    (:<:) (Atomic (Expr p)) f,
-    (:<:) Var p,
-    (:<:) Const p,
-    (:<:) Function p
-    ) => T.TokenParser a -> CharParser a (Expr p) -> CharParser a (Expr f)
-conditionParser mylex termP = 
-    --(atomicFormulaParser mylex (termParser mylex :: CharParser a (Expr p)) :: CharParser a (Expr f))
-    atomicParser mylex termP
-{-
-    (do
-        try $ T.reserved mylex "and"
-        parts <- many $ T.parens mylex $ (conditionParser mylex :: CharParser a (Expr f))
-        return $ eAnd parts)
-    <|>
-    (do
-        try $ T.reserved mylex "or"
-        parts <- many $ T.parens mylex $ (conditionParser mylex :: CharParser a (Expr f))
-        return $ eOr parts)
-    <|>
-    (do
-        try $ T.reserved mylex "not"
-        part <- T.parens mylex $ (conditionParser mylex :: CharParser a (Expr f))
-        return $ eNot part)
-    <|>
-    (do
-        try $ T.reserved mylex "forall"
-        vars <- T.parens mylex $ many $ parseTypedVar mylex
-        cond <- conditionParser mylex :: CharParser a (Expr f)
-        return $ (eForAll vars cond :: Expr f))
-    <|>
-    (do
-        try $ T.reserved mylex "exists"
-        vars <- T.parens mylex $ many $ parseTypedVar mylex
-        cond <- (conditionParser mylex :: CharParser a (Expr f))
-        return $ eExists vars cond)
-    <|>
-    (atomicFormulaParser mylex (termParser mylex :: CharParser a (Expr p)) :: CharParser a (Expr f))
--}
 
 atomicParser :: (Atomic a :<: f) =>
     T.TokenParser st

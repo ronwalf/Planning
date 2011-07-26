@@ -62,15 +62,15 @@ instance PDDLDocExpr Function where
     pddlDocExpr (Function name args) = parens $ sep $
         text name : map pddlDoc args
 
-instance PDDLDocExpr t => PDDLDocExpr (Typed (Expr t)) where
-    pddlDocExpr (Typed (In c) (In t)) =
-        (pddlDocExpr c) <+>
+instance PDDLDoc t => PDDLDocExpr (Typed t) where
+    pddlDocExpr (Typed c t) =
+        (pddlDoc c) <+>
         (char '-') <+>
-        (pddlDocExpr t)
+        (pddlDoc t)
 
-instance PDDLDocExpr f => PDDLDocExpr (Atomic (Expr f)) where
+instance PDDLDoc t => PDDLDocExpr (Atomic t) where
     pddlDocExpr (Atomic p tl) = parens $ hsep $
-        (text p) : map (\ (In t) -> pddlDocExpr t) tl
+        (text p) : map pddlDoc tl
 
 instance PDDLDocExpr And where
     pddlDocExpr (And el) = parens $ sep $ text "and" : [pddlDocExpr e | In e <- el]
@@ -102,7 +102,7 @@ instance PDDLDocExpr Or where
     pddlDocExpr (Or el) = parens $ sep $ text "or" : [pddlDocExpr e | In e <- el]
 
 
-instance PDDLDocExpr p => PDDLDocExpr (When (Expr p)) where
+instance PDDLDoc p => PDDLDocExpr (When p) where
     pddlDocExpr (When p e) = parens $ sep [
         text "when",
         pddlDoc p,
@@ -120,13 +120,13 @@ instance PDDLDocExpr Start where
 instance PDDLDocExpr End where
     pddlDocExpr End = text "end"
 
-instance PDDLDocExpr t => PDDLDocExpr (At (Expr t)) where
+instance PDDLDoc t => PDDLDocExpr (At t) where
     pddlDocExpr (At t e) = parens $ sep [
         text "at",
         pddlDoc t,
         pddlDoc e]
 
-instance PDDLDocExpr t => PDDLDocExpr (Over (Expr t)) where
+instance PDDLDoc t => PDDLDocExpr (Over t) where
     pddlDocExpr (Over t e) = parens $ sep [
         text "over",
         pddlDoc t,

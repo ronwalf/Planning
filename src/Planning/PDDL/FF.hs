@@ -42,7 +42,7 @@ stepParser = do
     skipMany1 digit
     _ <- char ':'
     _ <- space
-    act <- T.identifier pddlLexer
+    act <- T.identifier pddlExprLexer
     args <- manyTill cParser (try newline)
     return $ eAtomic act args
     where

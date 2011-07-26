@@ -52,11 +52,11 @@ type NDPDDLDomain = Domain ConstraintGDExpr NDPDDLAction
 ndpddlDomainParser :: CharParser NDPDDLDomain NDPDDLDomain
 ndpddlDomainParser =
     let
-        constraintP = constraintGDParser pddlLexer :: CharParser NDPDDLDomain ConstraintGDExpr
-        prefGDP = prefGDParser pddlLexer :: CharParser NDPDDLDomain PreferenceGDExpr
-        effectP = ndEffectDParser pddlLexer :: CharParser NDPDDLDomain NDEffectDExpr
+        constraintP = constraintGDParser pddlExprLexer :: CharParser NDPDDLDomain ConstraintGDExpr
+        prefGDP = prefGDParser pddlExprLexer :: CharParser NDPDDLDomain PreferenceGDExpr
+        effectP = ndEffectDParser pddlExprLexer :: CharParser NDPDDLDomain NDEffectDExpr
     in
-    domainParser pddlLexer
-        (domainInfoParser pddlLexer constraintP)
-        (actionParser pddlLexer prefGDP effectP)
+    domainParser pddlDescLexer
+        (domainInfoParser pddlDescLexer constraintP)
+        (actionParser pddlDescLexer prefGDP effectP)
 

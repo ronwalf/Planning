@@ -48,10 +48,10 @@ type PondProblem = Problem POInitLiteralExpr PreferenceGDExpr ConstraintGDExpr
 pondProblemParser :: CharParser PondProblem PondProblem
 pondProblemParser =
     let
-        constP = constParser pddlLexer :: CharParser PondProblem ConstTermExpr
-        initP = stdStateParser pddlLexer constP :: CharParser PondProblem POInitLiteralExpr
-        goalP = prefGDParser pddlLexer :: CharParser PondProblem PreferenceGDExpr
-        constraintP = constraintGDParser pddlLexer :: CharParser PondProblem ConstraintGDExpr
+        constP = constParser pddlExprLexer :: CharParser PondProblem ConstTermExpr
+        initP = stdStateParser pddlExprLexer constP :: CharParser PondProblem POInitLiteralExpr
+        goalP = prefGDParser pddlExprLexer :: CharParser PondProblem PreferenceGDExpr
+        constraintP = constraintGDParser pddlExprLexer :: CharParser PondProblem ConstraintGDExpr
     in
-    problemParser pddlLexer $
-    problemInfoParser pddlLexer initP goalP constraintP
+    problemParser pddlDescLexer $
+    problemInfoParser pddlDescLexer initP goalP constraintP

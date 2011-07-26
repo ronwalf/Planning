@@ -232,23 +232,22 @@ type PDDLProblem = Problem InitLiteralExpr PreferenceGDExpr ConstraintGDExpr
 pddlDomainParser :: CharParser PDDLDomain PDDLDomain
 pddlDomainParser =
     let
-        constraintP = constraintGDParser pddlLexer :: CharParser PDDLDomain ConstraintGDExpr
-        prefGDP = prefGDParser pddlLexer:: CharParser PDDLDomain PreferenceGDExpr
-        effectP = effectDParser pddlLexer :: CharParser PDDLDomain EffectDExpr
+        constraintP = constraintGDParser pddlExprLexer :: CharParser PDDLDomain ConstraintGDExpr
+        prefGDP = prefGDParser pddlExprLexer:: CharParser PDDLDomain PreferenceGDExpr
+        effectP = effectDParser pddlExprLexer :: CharParser PDDLDomain EffectDExpr
     in
-    domainParser pddlLexer
-        (domainInfoParser pddlLexer constraintP)
-        (actionParser pddlLexer prefGDP effectP)
+    domainParser pddlDescLexer
+        (domainInfoParser pddlDescLexer constraintP)
+        (actionParser pddlDescLexer prefGDP effectP)
 
 
 pddlProblemParser :: CharParser PDDLProblem PDDLProblem
 pddlProblemParser =
     let
-        -- constP = constParser pddlLexer :: CharParser PDDLProblem ConstTermExpr
-        initP = T.parens pddlLexer $ initLiteralParser pddlLexer :: CharParser PDDLProblem InitLiteralExpr
-        goalP = prefGDParser pddlLexer :: CharParser PDDLProblem PreferenceGDExpr
-        constraintP = constraintGDParser pddlLexer :: CharParser PDDLProblem ConstraintGDExpr
+        initP = T.parens pddlExprLexer $ initLiteralParser pddlExprLexer :: CharParser PDDLProblem InitLiteralExpr
+        goalP = prefGDParser pddlExprLexer :: CharParser PDDLProblem PreferenceGDExpr
+        constraintP = constraintGDParser pddlExprLexer :: CharParser PDDLProblem ConstraintGDExpr
     in
-    problemParser pddlLexer $
-    problemInfoParser pddlLexer initP goalP constraintP
+    problemParser pddlDescLexer $
+    problemInfoParser pddlDescLexer initP goalP constraintP
 
