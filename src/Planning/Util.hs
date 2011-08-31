@@ -11,8 +11,48 @@ module Planning.Util where
 
 import Data.List
 import Data.Maybe
+import Control.Monad (liftM)
 
 import Planning.Expressions
+
+class (Functor f) => IsPosLit f where
+    isPosLit' :: f Bool -> Bool
+isPosLit :: (IsPosLit f) => Expr f -> Bool
+isPosLit = foldExpr isPosLit'
+
+instance (IsPosLit f, IsPosLit g) => IsPosLit (f :+: g) where
+    isPosLit' (Inr x) = isPosLit' x
+    isPosLit' (Inl y) = isPosLit' y
+instance IsPosLit (Atomic t) where
+    isPosLit' _ = True
+instance IsPosLit Not where
+    isPosLit' (Not x) = not x
+
+class (Functor f) => LitName f where
+    litName' :: f String -> String
+litName :: LitName f => Expr f -> String
+litName = foldExpr litName'
+
+instance (LitName f, LitName g) => LitName (f :+: g) where
+    litName' (Inr x) = litName' x
+    litName' (Inl y) = litName' y
+instance LitName (Atomic t) where
+    litName' (Atomic p _) = p
+instance LitName Not where
+    litName' (Not x) = x
+
+class (Functor f) => LitArgs t f where
+    litArgs' :: f [t] -> [t]
+litArgs :: LitArgs t f => Expr f -> [t]
+litArgs = foldExpr litArgs'
+
+instance (LitArgs t f, LitArgs t g) => LitArgs t (f :+: g) where
+    litArgs' (Inr x) = litArgs' x
+    litArgs' (Inl y) = litArgs' y
+instance LitArgs t (Atomic t) where
+    litArgs' (Atomic _ tl) = tl
+instance LitArgs t Not where
+    litArgs' (Not tl) = tl
 
 -- nnf helper class
 -- nnf' takes a bool arg, False for negated, True for not-negated.
@@ -158,6 +198,37 @@ instance AtomsFindable f g => AtomsFindable (When (Expr f)) g where
 instance AtomsFindable OneOf g where
     findAtoms' (OneOf el) = concat el
 
+-- Finds all literals (kinda assumes NNF form)
+class (Functor f) => LiteralsFindable f g where
+    findLiterals' :: f [Expr (Not :+: Atomic g)] -> [Expr (Not :+: Atomic g)]
+findLiterals :: LiteralsFindable f g => Expr f -> [Expr (Not :+: Atomic g)]
+findLiterals = foldExpr findLiterals'
+
+instance (LiteralsFindable f g, LiteralsFindable h g) => LiteralsFindable (f :+: h) g where
+    findLiterals' (Inl x) = findLiterals' x
+    findLiterals' (Inr y) = findLiterals' y
+instance LiteralsFindable (Atomic g) g where
+    findLiterals' (Atomic p tl) = [eAtomic p tl]
+instance LiteralsFindable And g where
+    findLiterals' (And el) = concat el
+instance LiteralsFindable Or g where
+    findLiterals' (Or el) = concat el
+instance LiteralsFindable Not g where
+    findLiterals' (Not e) = map eNot e
+instance LiteralsFindable (ForAll t) g where
+    findLiterals' (ForAll _ e) = e
+instance LiteralsFindable (Exists t) g where
+    findLiterals' (Exists _ e) = e 
+instance LiteralsFindable Imply g where
+    findLiterals' (Imply e1 e2) = e1 ++ e2
+instance LiteralsFindable Preference g where
+    findLiterals' (Preference _ e) = e
+instance LiteralsFindable f g => LiteralsFindable (When (Expr f)) g where
+    findLiterals' (When p e) = findLiterals p ++ e
+instance LiteralsFindable OneOf g where
+    findLiterals' (OneOf el) = concat el
+
+
 
 -- Break apart OneOf expressions into a list of possibilities
 class (Functor f) => OneOfFindable f g where
@@ -284,4 +355,37 @@ instance FindConstants Preference where
 instance (FindConstants p) => FindConstants (When (Expr p)) where
     findConstants' (When p e) = findConstants p ++ e
 
+-- Try to convert an expression to one with only constant and function terms
+class (Functor f) => CFConversion g f where
+    cfConversion' :: (Monad m) => f (m (Expr g)) -> m (Expr g)
+cfConversion:: (Monad m, CFConversion g f) => Expr f -> m (Expr g)
+cfConversion = foldExpr cfConversion'
+
+instance (CFConversion h f, CFConversion h g) => CFConversion h (f :+: g) where
+    cfConversion' (Inl x) = cfConversion' x
+    cfConversion' (Inr y) = cfConversion' y
+
+instance CFConversion g Var where
+    cfConversion' (Var v) = fail $ "Cannot convert: Variable " ++ v ++ " found"
+instance (Const :<: g) => CFConversion g Const where
+    cfConversion' (Const c) = return $ eConst c
+instance (Function :<: g) => CFConversion g Function where
+    cfConversion' (Function f tl) = do
+        gtl <- sequence tl
+        return $ eFunc f gtl
+instance (Atomic (Expr ct) :<: g, CFConversion ct t) => CFConversion g (Atomic (Expr t)) where
+    cfConversion' (Atomic p tl) = do
+        ctl <- sequence $ map cfConversion tl
+        return $ eAtomic p (ctl :: [Expr ct])
+instance (Not :<: g) => CFConversion g Not where
+    cfConversion' (Not e) = liftM eNot e
+instance (And :<: g) => CFConversion g And where
+    cfConversion' (And el) = liftM eAnd $ sequence el
+instance (Or :<: g) => CFConversion g Or where
+    cfConversion' (Or el) = liftM eOr $ sequence el
+instance (At (Expr cg) :<: g, CFConversion cg c) => CFConversion g (At (Expr c)) where
+    cfConversion' (At c e) = do
+        cg <- cfConversion c
+        e' <- e
+        return $ eAt (cg :: Expr cg) e'
 
