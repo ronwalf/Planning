@@ -1,0 +1,12 @@
+Planning: 
+An extensible Haskell framework for automated planning languages, paticularly PDDL.
+
+The Planning package centers around extensible type safe expressions for
+automated planning languages, modelled after Wouter Swierstra's Datatypes ala 
+Carte[1].  Built around this are types describing PDDL, a PDDL parser and
+serializer, and common utility functions, such as a negation normal form
+transformation and variable replacement.
+
+
+
+[1] http://www.cs.ru.nl/~wouters/Publications/DataTypesALaCarte.pdf
