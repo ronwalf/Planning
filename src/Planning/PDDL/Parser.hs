@@ -1,15 +1,15 @@
 {-# LANGUAGE
     FlexibleContexts,
     OverlappingInstances,
-    RankNTypes
+    RankNTypes,
+    ScopedTypeVariables
   #-}
 module Planning.PDDL.Parser (
     pddlDescLanguage,
     pddlExprLanguage,
     pddlDescLexer,
     pddlExprLexer,
-    parseTypedConst,
-    parseTypedVar,
+    parseTypedList,
     domainParser,
     domainInfoParser,
     problemParser,
@@ -20,6 +20,7 @@ module Planning.PDDL.Parser (
     predicateParser,
     stdStateParser,
     atomicParser,
+    atomicTypeParser,
     andParser,
     orParser,
     notParser,
@@ -39,6 +40,7 @@ module Planning.PDDL.Parser (
     collect
 ) where
 
+import Control.Monad (liftM)
 import Data.Data
 import Text.ParserCombinators.Parsec
 import qualified Text.ParserCombinators.Parsec.Token as T
@@ -87,6 +89,19 @@ pddlDescLexer = T.makeTokenParser pddlDescLanguage
 pddlExprLexer :: T.TokenParser a
 pddlExprLexer = T.makeTokenParser pddlExprLanguage
 
+parseTypedList :: forall a c . T.TokenParser a -> CharParser a c -> CharParser a [Expr (Typed c)]
+parseTypedList mylex cparser = liftM concat $ many $ do
+    terms <- many cparser
+    tl <- option [] (do
+        T.reserved mylex "-"
+        try (T.parens mylex $ do
+            T.reserved mylex "either"
+            many $ T.identifier mylex)
+        <|>
+        (T.identifier mylex >>= (return . (:[]))))
+    return $ map (flip eTyped tl :: c -> Expr (Typed c)) terms
+
+{-
 parseTypedConst :: T.TokenParser a -> CharParser a TypedConstExpr
 parseTypedConst mylex = do
     In (Const cstr) <- constParser mylex
@@ -103,6 +118,7 @@ parseTypedVar mylex = do
         T.reserved mylex "-"
         tstr <- T.identifier mylex
         return $ eTyped (eVar vstr :: Expr Var) (eConst tstr :: Expr Const))
+-}
 
 -- | The domain parser takes a pddlLexer, an domain item parser, and a domain sink
 domainParser :: (HasName b, HasActions t b) =>
@@ -180,6 +196,15 @@ atomicParser mylex termP = do
     arguments <- many $ termP
     return $ eAtomic name arguments
 
+atomicTypeParser :: T.TokenParser st
+    -> CharParser st a
+    -> CharParser st (Expr (Atomic (Expr (Typed a))))
+atomicTypeParser mylex termP = do
+    name <- predicateParser mylex
+    arguments <- parseTypedList mylex termP
+    return $ eAtomic name arguments
+
+
 andParser :: (And :<: f) =>
     T.TokenParser st
     -> CharParser st (Expr f)
@@ -234,9 +259,9 @@ forallParser :: (ForAll TypedVarExpr :<: f) =>
     -> CharParser st (Expr f)
 forallParser mylex exprP = do
     try $ T.reserved mylex "forall"
-    vars <- T.parens mylex $ many $ parseTypedVar mylex
+    vars <- T.parens mylex $ parseTypedList mylex $ varParser mylex
     cond <- T.parens mylex exprP
-    return $ eForAll vars cond
+    return $ eForAll (vars :: [TypedVarExpr]) cond
 
 existsParser :: (Exists TypedVarExpr :<: f) =>
     T.TokenParser st
@@ -244,9 +269,9 @@ existsParser :: (Exists TypedVarExpr :<: f) =>
     -> CharParser st (Expr f)
 existsParser mylex exprP = do
     try $ T.reserved mylex "exists"
-    vars <- T.parens mylex $ many $ parseTypedVar mylex
+    vars <- T.parens mylex $ parseTypedList mylex $ varParser mylex
     cond <- T.parens mylex exprP
-    return $ eExists vars cond
+    return $ eExists (vars :: [TypedVarExpr]) cond
 
 preferenceParser :: (Preference :<: f) =>
     T.TokenParser st
@@ -288,12 +313,12 @@ maybeParser mylex p =
         result <- T.parens mylex p
         return $ Just result)
 
-domainInfoParser :: (HasRequirements st,
-        HasTypes TypedConstExpr st,
+domainInfoParser :: forall st a . 
+    (HasRequirements st,
+        HasTypes (Expr (Typed String)) st,
         HasConstants TypedConstExpr st,
         HasConstraints a st,
-        Atomic TypedVarExpr :<: f,
-        HasPredicates (Expr f) st) =>
+        HasPredicates TypedPredicateExpr st) =>
     T.TokenParser st
     -> CharParser st a
     -> CharParser st ()
@@ -305,12 +330,12 @@ domainInfoParser mylex condParser =
     <|>
     (do
         try $ T.reserved mylex ":types"
-        types <- many $ parseTypedConst mylex
+        types <- parseTypedList mylex $ T.identifier mylex
         updateState (setTypes types))
     <|>
     (do
         try $ T.reserved mylex ":constants"
-        constants <- many $ parseTypedConst mylex 
+        constants <- parseTypedList mylex $ constParser mylex
         updateState (setConstants constants))
      <|>
     (do
@@ -320,7 +345,7 @@ domainInfoParser mylex condParser =
     <|>
     (do
         try $ T.reserved mylex ":predicates"
-        preds <- many $ T.parens mylex (atomicParser mylex (parseTypedVar mylex))
+        preds <- many $ T.parens mylex (atomicTypeParser mylex (varParser mylex) :: CharParser st TypedPredicateExpr)
         updateState (setPredicates preds)
     )
 
@@ -348,7 +373,7 @@ problemInfoParser mylex stateParser goalParser constraintParser =
     <|>
     (do
         try $ T.reserved mylex ":objects"
-        objs <- many $ parseTypedConst mylex
+        objs <- parseTypedList mylex $ constParser mylex
         updateState (setConstants objs))
     <|>
     (do
@@ -415,7 +440,7 @@ paramParser :: (HasParameters TypedVarExpr a) =>
     T.TokenParser st -> CharParser st (a -> a)
 paramParser mylex = do
     try $ T.reserved mylex ":parameters"
-    params <- T.parens mylex $ many $ parseTypedVar mylex
+    params <- T.parens mylex $ parseTypedList mylex $ varParser mylex
     return $ setParameters params
 
 precondParser :: (HasPrecondition a a1) =>

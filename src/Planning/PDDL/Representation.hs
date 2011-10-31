@@ -5,6 +5,7 @@
     MultiParamTypeClasses,
     OverlappingInstances,
     RankNTypes,
+    ScopedTypeVariables,
     StandaloneDeriving,
     TypeOperators,
     TypeSynonymInstances,
@@ -44,7 +45,10 @@ class Functor f => PDDLDocExpr f where
 
 class PDDLDoc d where
     pddlDoc :: d -> Doc
-    
+
+instance PDDLDoc String where
+    pddlDoc = text
+
 instance PDDLDocExpr f => PDDLDoc (Expr f) where
     pddlDoc (In x) = pddlDocExpr x
 
@@ -62,15 +66,30 @@ instance PDDLDocExpr Function where
     pddlDocExpr (Function name args) = parens $ sep $
         text name : map pddlDoc args
 
-instance PDDLDoc t => PDDLDocExpr (Typed t) where
-    pddlDocExpr (Typed c t) =
-        (pddlDoc c) <+>
-        (char '-') <+>
-        (pddlDoc t)
+instance PDDLDoc t => PDDLDoc [Expr (Typed t)] where
+    pddlDoc = sep . fst . foldr typelistDoc ([], [])
+        where
+        typelistDoc :: Expr (Typed t) -> ([Doc], [String]) -> ([Doc], [String])
+        typelistDoc typed (doc, ptype)
+            | getType typed == ptype 
+                = (pddlDoc (removeType typed :: t) : doc, ptype)
+            | otherwise
+                = let tl = getType typed in
+                    (pddlDoc (removeType typed :: t) : char '-' : docType tl : doc, tl)
+        docType :: [String] -> Doc
+        docType [] = text "object"
+        docType [t] = text t
+        docType tl = parens $ sep $ text "either" : map text tl
 
-instance PDDLDoc t => PDDLDocExpr (Atomic t) where
+-- No PDDLDocExpr for Typed, which gives us a way to distinquish
+-- typed instances and render them differently.
+instance PDDLDocExpr t => PDDLDocExpr (Atomic (Expr t)) where
     pddlDocExpr (Atomic p tl) = parens $ hsep $
         (text p) : map pddlDoc tl
+
+instance PDDLDoc t => PDDLDocExpr (Atomic (Expr (Typed t))) where
+    pddlDocExpr (Atomic p tl) = parens $ 
+        (text p) <+> pddlDoc tl
 
 instance PDDLDocExpr And where
     pddlDocExpr (And el) = parens $ sep $ text "and" : [pddlDocExpr e | In e <- el]
@@ -78,13 +97,13 @@ instance PDDLDocExpr And where
 instance PDDLDocExpr (Exists TypedVarExpr) where
     pddlDocExpr (Exists vl (In e)) = parens $ sep [
         text "exists",
-        parens (sep [ pddlDocExpr v | In v <- vl ]),
+        parens (pddlDoc vl),
         pddlDocExpr e ]
 
 instance PDDLDocExpr (ForAll TypedVarExpr) where
     pddlDocExpr (ForAll vl (In e)) = parens $ sep [
         text "forall",
-        parens (sep [ pddlDocExpr v | In v <- vl ]),
+        parens (pddlDoc vl),
         pddlDocExpr e ]
     
 instance PDDLDocExpr Imply where
@@ -201,6 +220,13 @@ docNonEmpty name ol =
     if (null ol) then empty else parens $ sep $
         text name : map pddlDoc ol
 
+docIf :: (x -> Bool) -> (x -> Doc) -> x -> Doc
+docIf cond f x = if cond x then f x else empty
+docList :: ([x] -> Doc) -> [x] -> Doc
+docList f [] = empty
+docList f l = f l
+
+
 docMaybe :: PDDLDoc f => String -> Maybe f -> Doc
 docMaybe _ Nothing = empty
 docMaybe name (Just x) = sep $ [ text name, pddlDoc x ]
@@ -212,10 +238,10 @@ docMaybe name (Just x) = sep $ [ text name, pddlDoc x ]
 data Domain a b = Domain 
     Name
     Requirements
-    (Types TypedConstExpr)
+    (Types (Expr (Typed String)))
     (Constants TypedConstExpr)
-    (Predicates (Expr (Atomic TypedVarExpr)))
-    (Functions TypedFuncExpr)
+    (Predicates TypedPredicateExpr)
+    (Functions TypedFuncSkelExpr)
     (Constraints a)
     (Actions b)
     deriving (Data, Eq, Typeable)
@@ -224,8 +250,8 @@ instance (Data a, Data b) => HasName (Domain a b)
 instance (Data a, Data b) => HasRequirements (Domain a b)
 instance (Data a, Data b) => HasTypes TypedConstExpr (Domain a b)
 instance (Data a, Data b) => HasConstants TypedConstExpr (Domain a b)
-instance (Data a, Data b) => HasPredicates (Expr (Atomic TypedVarExpr)) (Domain a b)
-instance (Data a, Data b) => HasFunctions TypedFuncExpr (Domain a b)
+instance (Data a, Data b) => HasPredicates TypedPredicateExpr (Domain a b)
+instance (Data a, Data b) => HasFunctions TypedFuncSkelExpr (Domain a b)
 instance (Data a, Data b) => HasConstraints a (Domain a b)
 instance (Data a, Data b) => HasActions b (Domain a b)
 
@@ -238,10 +264,9 @@ instance (Data a, Data b, PDDLDoc a, PDDLDoc b) =>
             (sep $ 
              map (text . (':':)) $ 
              "requirements" : getRequirements domain)) :
-        parens (sep $ (text ":types") :
-            map pddlDoc (getTypes domain)) :
-        parens (sep $ (text ":predicates") :
-            map pddlDoc (getPredicates domain)) :
+        docList (parens . sep . (text ":types" :) . (:[]) . pddlDoc) (getTypes domain) :
+        docList (parens . sep . (text ":predicates" :) . map pddlDoc) (getPredicates domain) :
+        docList (parens . sep . (text ":functions" :) . (:[]) . pddlDoc) (getFunctions domain) :
         maybe empty (\constr -> parens $ sep [text ":constraints", pddlDoc constr])
             (getConstraints domain) :
         space :
@@ -278,7 +303,8 @@ defaultAction = Action (Name "empty") (Parameters []) (Precondition Nothing) (Ef
 instance (Data p, Data e, PDDLDoc p, PDDLDoc e) => PDDLDoc (Action p e) where
     pddlDoc a = parens $ sep [
         text ":action" <+> (text $ getName a),
-        text ":parameters" <+> (parens $ hsep $ map pddlDoc $ getParameters a), 
+        --text ":parameters" <+> (parens $ hsep $ map pddlDoc $ getParameters a), 
+        text ":parameters" <+> (parens $ pddlDoc $ getParameters a),
         docMaybe ":precondition" $ getPrecondition a,
         docMaybe ":effect" $ getEffect a]
 
@@ -317,7 +343,8 @@ instance (Data a, Data b, Data c,
         (parens $ text ":domain" <+> (text $ getDomainName prob)) :
         (if null $ getRequirements prob then empty else 
            (parens $ sep $ text ":requirements" : map (text . (':':)) (getRequirements prob))) :
-        docNonEmpty ":objects" (getConstants prob) :
+        --docNonEmpty ":objects" (getConstants prob) :
+        docList (parens . (text ":objects" <+>) . pddlDoc) (getConstants prob) :
         docNonEmpty ":init" (getInitial prob) :
         maybe empty (\x -> parens $ sep [text ":goal", pddlDoc x]) 
             (getGoal prob) :

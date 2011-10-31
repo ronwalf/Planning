@@ -23,9 +23,12 @@ module Planning.Expressions (
     TypedConstExpr,
     TypedVar,
     TypedVarExpr,
-    TypedFunc,
-    TypedFuncExpr,
+    TypedPredicate,
+    TypedPredicateExpr,
+    TypedFuncSkel,
+    TypedFuncSkelExpr,
     Untypeable, removeType,
+    GetType, getType,
 
     -- First Order Logic
     Atomic(..), AtomicExpression(..),
@@ -107,7 +110,7 @@ eFunc n tl = inject (Function n tl)
 -- Typing (commonly used to type Terms)
 ---------------------------------------
 
-data Typed t e = Typed t (Expr Const) deriving (Data, Eq, Typeable)
+data Typed t e = Typed t [String] deriving (Data, Eq, Typeable)
 instance Functor (Typed t) where
     fmap _ (Typed e t) = Typed e t
 instance Eq t => FuncEq (Typed t) where
@@ -115,34 +118,38 @@ instance Eq t => FuncEq (Typed t) where
 instance Ord t => FuncOrd (Typed t) where
     funcCompare (Typed e1 t1) (Typed e2 t2) = compare (e1, t1) (e2, t2)
 class (Typed t :<: f) => TypedExpression t f | f -> t where
-    eTyped :: t -> Expr Const -> Expr f
+    eTyped :: t -> [String] -> Expr f
 instance (Typed t :<:f) => TypedExpression t f where
     eTyped e t = inject (Typed e t)
 type TypedConst = Typed (Expr Const)
-type TypedConstExpr = Expr (TypedConst :+: Const)
+type TypedConstExpr = Expr TypedConst
 type TypedVar = Typed (Expr Var)
-type TypedVarExpr = Expr (TypedVar :+: Var)
-type TypedFunc = Typed (Expr Function)
-type TypedFuncExpr = Expr (TypedFunc :+: Function :+: Var :+: TypedVar)
+type TypedVarExpr = Expr TypedVar
+type TypedPredicate = Atomic TypedVarExpr
+type TypedPredicateExpr = Expr TypedPredicate
+type TypedFuncSkel = Typed TypedPredicateExpr -- i.e., no nested funcs in skeleton
+type TypedFuncSkelExpr = Expr TypedFuncSkel
 
-class (Functor f, Functor g) => Untypeable f g where
-    untype :: f (Expr g) -> Expr g
-instance (Functor h, Untypeable f h, Untypeable g h) => Untypeable (f :+: g) h where
+class Functor f=> Untypeable f g | f -> g where
+    untype :: f g -> g
+instance (Untypeable f h, Untypeable g h) => Untypeable (f :+: g) h where
     untype (Inl x) = untype x
     untype (Inr y) = untype y
-instance (:<:) Const g => Untypeable (Typed (Expr Const)) g where
-    untype (Typed (In (Const c)) _) = eConst c
-instance (:<:) Var g => Untypeable (Typed (Expr Var)) g where
-    untype (Typed (In (Var v)) _ ) = eVar v
-instance (:<:) Const g => Untypeable Const g where
-    untype (Const c) = eConst c
-instance (:<:) Var g => Untypeable Var g where
-    untype (Var v) = eVar v
+instance Untypeable (Typed e) e where
+    untype (Typed e tl) = e
 
-removeType :: Untypeable f g => Expr f -> Expr g
+removeType :: Untypeable f g => Expr f -> g
 removeType = foldExpr untype
 
-
+class (Functor f) => GetType f where
+    getType' :: f [String] -> [String]
+instance (GetType f, GetType g) => GetType (f :+: g) where
+    getType' (Inl x) = getType' x
+    getType' (Inr x) = getType' x
+instance GetType (Typed t) where
+    getType' (Typed _ tl) = tl
+getType :: GetType f => Expr f -> [String]
+getType = foldExpr getType'
 
 --------------------------------------------------------
 -- Literals
