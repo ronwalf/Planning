@@ -19,6 +19,7 @@ module Planning.Expressions (
 
     -- Typing
     Typed(..), TypedExpression(..),
+    TypedTypeExpr,
     TypedConst,
     TypedConstExpr,
     TypedVar,
@@ -121,6 +122,7 @@ class (Typed t :<: f) => TypedExpression t f | f -> t where
     eTyped :: t -> [String] -> Expr f
 instance (Typed t :<:f) => TypedExpression t f where
     eTyped e t = inject (Typed e t)
+type TypedTypeExpr = Expr (Typed String)
 type TypedConst = Typed (Expr Const)
 type TypedConstExpr = Expr TypedConst
 type TypedVar = Typed (Expr Var)
@@ -136,7 +138,7 @@ instance (Untypeable f h, Untypeable g h) => Untypeable (f :+: g) h where
     untype (Inl x) = untype x
     untype (Inr y) = untype y
 instance Untypeable (Typed e) e where
-    untype (Typed e tl) = e
+    untype (Typed e _) = e
 
 removeType :: Untypeable f g => Expr f -> g
 removeType = foldExpr untype

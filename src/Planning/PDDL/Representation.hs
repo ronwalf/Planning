@@ -26,10 +26,11 @@ module Planning.PDDL.Representation (
 
     PDDLDoc(..),
     PDDLDocExpr(..),
-    docMaybe, docNonEmpty
+    docList, docMaybe, docNonEmpty
 ) where
 
 import Data.Data
+import Data.Function (on)
 import Data.List
 import Text.PrettyPrint
 
@@ -67,19 +68,28 @@ instance PDDLDocExpr Function where
         text name : map pddlDoc args
 
 instance PDDLDoc t => PDDLDoc [Expr (Typed t)] where
-    pddlDoc = sep . fst . foldr typelistDoc ([], [])
+    pddlDoc tl = 
+        let
+            groups :: [[Expr (Typed t)]]
+            groups = groupBy ((==) `on` getType) tl
+        in
+        sep $ fst $ foldr typelistDoc ([], []) groups
         where
-        typelistDoc :: Expr (Typed t) -> ([Doc], [String]) -> ([Doc], [String])
-        typelistDoc typed (doc, ptype)
-            | getType typed == ptype 
-                = (pddlDoc (removeType typed :: t) : doc, ptype)
+        
+        typelistDoc :: [Expr (Typed t)] -> ([Doc], [String]) -> ([Doc], [String])
+        typelistDoc [] x = x
+        typelistDoc tg@(h:_) (doc, ptype)
+            | getType h == ptype 
+                = (sep (docSameTypes tg) : doc, ptype)
             | otherwise
-                = let tl = getType typed in
-                    (pddlDoc (removeType typed :: t) : char '-' : docType tl : doc, tl)
+                = let dt = char '-' <+> docType (getType h) in
+                    (sep (docSameTypes tg ++ [dt]) : doc, getType h)
+        docSameTypes :: [Expr (Typed t)] -> [Doc]
+        docSameTypes = map (pddlDoc . removeType)
         docType :: [String] -> Doc
         docType [] = text "object"
         docType [t] = text t
-        docType tl = parens $ sep $ text "either" : map text tl
+        docType l = parens $ sep $ text "either" : map text l
 
 -- No PDDLDocExpr for Typed, which gives us a way to distinquish
 -- typed instances and render them differently.
@@ -220,16 +230,12 @@ docNonEmpty name ol =
     if (null ol) then empty else parens $ sep $
         text name : map pddlDoc ol
 
-docIf :: (x -> Bool) -> (x -> Doc) -> x -> Doc
-docIf cond f x = if cond x then f x else empty
 docList :: ([x] -> Doc) -> [x] -> Doc
-docList f [] = empty
+docList _ [] = empty
 docList f l = f l
-
-
-docMaybe :: PDDLDoc f => String -> Maybe f -> Doc
+docMaybe :: (x -> Doc) -> Maybe x -> Doc
 docMaybe _ Nothing = empty
-docMaybe name (Just x) = sep $ [ text name, pddlDoc x ]
+docMaybe f (Just x) = f x
 
 
 ------------------------------
@@ -238,7 +244,7 @@ docMaybe name (Just x) = sep $ [ text name, pddlDoc x ]
 data Domain a b = Domain 
     Name
     Requirements
-    (Types (Expr (Typed String)))
+    (Types TypedTypeExpr)
     (Constants TypedConstExpr)
     (Predicates TypedPredicateExpr)
     (Functions TypedFuncSkelExpr)
@@ -248,7 +254,7 @@ data Domain a b = Domain
 
 instance (Data a, Data b) => HasName (Domain a b)
 instance (Data a, Data b) => HasRequirements (Domain a b)
-instance (Data a, Data b) => HasTypes TypedConstExpr (Domain a b)
+instance (Data a, Data b) => HasTypes TypedTypeExpr (Domain a b)
 instance (Data a, Data b) => HasConstants TypedConstExpr (Domain a b)
 instance (Data a, Data b) => HasPredicates TypedPredicateExpr (Domain a b)
 instance (Data a, Data b) => HasFunctions TypedFuncSkelExpr (Domain a b)
@@ -305,8 +311,8 @@ instance (Data p, Data e, PDDLDoc p, PDDLDoc e) => PDDLDoc (Action p e) where
         text ":action" <+> (text $ getName a),
         --text ":parameters" <+> (parens $ hsep $ map pddlDoc $ getParameters a), 
         text ":parameters" <+> (parens $ pddlDoc $ getParameters a),
-        docMaybe ":precondition" $ getPrecondition a,
-        docMaybe ":effect" $ getEffect a]
+        docMaybe ((text ":precondition" <+>) . pddlDoc) $ getPrecondition a,
+        docMaybe ((text ":effect" <+>) . pddlDoc) $ getEffect a]
 
 
 -------------------------------
@@ -346,9 +352,9 @@ instance (Data a, Data b, Data c,
         --docNonEmpty ":objects" (getConstants prob) :
         docList (parens . (text ":objects" <+>) . pddlDoc) (getConstants prob) :
         docNonEmpty ":init" (getInitial prob) :
-        maybe empty (\x -> parens $ sep [text ":goal", pddlDoc x]) 
-            (getGoal prob) :
-        docMaybe ":constraints" (getConstraints prob) : []
+        docMaybe ((text ":goal" <+>) . pddlDoc) (getGoal prob) :
+        docMaybe ((text ":constraints" <+>) . pddlDoc) (getConstraints prob) :
+        []
 
        
     

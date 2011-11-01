@@ -1,4 +1,4 @@
-{-# LANGUAGE OverlappingInstances#-}
+{-# LANGUAGE OverlappingInstances #-}
 module Main where
 
 import System.Environment

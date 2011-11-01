@@ -31,3 +31,9 @@ Library
         Planning.PDDL.Pond, Planning.PDDL.NDPDDL, Planning.PDDL.FF
   ghc-options:
         -O -Wall
+
+Test-Suite test-planning
+  type: detailed-1.0
+  test-module: Planning.Test
+  build-depends: base, Cabal >= 1.9.2
+

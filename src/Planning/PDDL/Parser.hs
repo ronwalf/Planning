@@ -42,6 +42,7 @@ module Planning.PDDL.Parser (
 
 import Control.Monad (liftM)
 import Data.Data
+import Data.Maybe (catMaybes)
 import Text.ParserCombinators.Parsec
 import qualified Text.ParserCombinators.Parsec.Token as T
 
@@ -78,7 +79,6 @@ pddlDescLanguage = baseLanguage {
 pddlExprLanguage :: T.LanguageDef st
 pddlExprLanguage = baseLanguage {
     T.reservedNames = [
-        "-", -- Types
         "and", "exists", "forall", "imply", "not", "when" -- Conditions
         ]
         ++ comparisons
@@ -91,15 +91,24 @@ pddlExprLexer = T.makeTokenParser pddlExprLanguage
 
 parseTypedList :: forall a c . T.TokenParser a -> CharParser a c -> CharParser a [Expr (Typed c)]
 parseTypedList mylex cparser = liftM concat $ many $ do
-    terms <- many cparser
-    tl <- option [] (do
-        T.reserved mylex "-"
+    terms <- many1 cparser
+    tl <- option [] $ (>>) (try $ T.symbol mylex "-") $ (
+        try (tparser >>= return . (:[]))
+        <|>
         try (T.parens mylex $ do
             T.reserved mylex "either"
-            many $ T.identifier mylex)
-        <|>
-        (T.identifier mylex >>= (return . (:[]))))
-    return $ map (flip eTyped tl :: c -> Expr (Typed c)) terms
+            many tparser))
+    return $ map (flip eTyped (catMaybes tl) :: c -> Expr (Typed c)) terms
+    where
+        tparser =
+            (do
+                T.reserved mylex "object"
+                return Nothing)
+            <|> 
+            (do
+                t <- T.identifier mylex
+                return (Just t))
+
 
 {-
 parseTypedConst :: T.TokenParser a -> CharParser a TypedConstExpr

@@ -15,6 +15,21 @@ import Control.Monad (liftM)
 
 import Planning.Expressions
 
+class (Functor f, Functor g) => LiftExpression f g where
+    liftE' :: f (Expr g) -> Expr g
+liftE :: (LiftExpression f g) => Expr f -> Expr g
+liftE = foldExpr liftE'
+
+instance (LiftExpression f h, LiftExpression g h) => LiftExpression (f :+: g) h where
+    liftE' (Inl x) = liftE' x
+    liftE' (Inr y) = liftE' y
+
+instance (Var :<: g) => LiftExpression Var g where
+    liftE' (Var v) = eVar v
+instance (Const :<: g) => LiftExpression Const g where
+    liftE' (Const g) = eConst g
+
+
 class (Functor f) => IsPosLit f where
     isPosLit' :: f Bool -> Bool
 isPosLit :: (IsPosLit f) => Expr f -> Bool
@@ -296,12 +311,12 @@ instance (Or :<: f, TermSubstitution t f f) => TermSubstitution t Or f where
 instance (Not :<: f, TermSubstitution t f f) => TermSubstitution t Not f where
     substituteTerm' vsl (Not e) = eNot $ substituteTerm vsl e
 
-instance (Untypeable v Var, ForAll (Expr v) :<: f, TermSubstitution t f f) => TermSubstitution t (ForAll (Expr v)) f where
+instance (ForAll TypedVarExpr :<: f, TermSubstitution t f f) => TermSubstitution t (ForAll TypedVarExpr) f where
     substituteTerm' vsl (ForAll vl e) =
         let vsl' = filter (\(v, _) -> not $ v `elem` map removeType vl) vsl in
         eForAll vl $ substituteTerm vsl' e
 
-instance (Untypeable v Var, Exists (Expr v) :<: f, TermSubstitution t f f) => TermSubstitution t (Exists (Expr v)) f where
+instance (Exists TypedVarExpr :<: f, TermSubstitution t f f) => TermSubstitution t (Exists TypedVarExpr) f where
     substituteTerm' vsl (Exists vl e) =
         let vsl' = filter (\(v, _) -> not $ v `elem` map removeType vl) vsl in
         eExists vl $ substituteTerm vsl' e
