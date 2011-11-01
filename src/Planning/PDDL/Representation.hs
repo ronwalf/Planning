@@ -351,9 +351,9 @@ instance (Data a, Data b, Data c,
            (parens $ sep $ text ":requirements" : map (text . (':':)) (getRequirements prob))) :
         --docNonEmpty ":objects" (getConstants prob) :
         docList (parens . (text ":objects" <+>) . pddlDoc) (getConstants prob) :
-        docNonEmpty ":init" (getInitial prob) :
-        docMaybe ((text ":goal" <+>) . pddlDoc) (getGoal prob) :
-        docMaybe ((text ":constraints" <+>) . pddlDoc) (getConstraints prob) :
+        docList (parens . sep . (text ":init" : ) . map pddlDoc) (getInitial prob) : 
+        docMaybe (parens . (text ":goal" <+>) . pddlDoc) (getGoal prob) :
+        docMaybe (parens . (text ":constraints" <+>) . pddlDoc) (getConstraints prob) :
         []
 
        
