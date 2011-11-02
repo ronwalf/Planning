@@ -4,11 +4,22 @@ Cabal-Version:  >= 1.2
 Build-Type:     Simple
 License:	BSD3
 License-File:	LICENSE
-Author:		Ron Alford
-Homepage:	http://www.cs.umd.edu/~ronwalf/software/planning/
-Category:	AI
+Author: Ron Alford <ronwalf@volus.net>
+Maintainer: Ron Alford <ronwalf@volus.net>
+Homepage:	https://github.com/ronwalf/Planning
+Category:	AI, Planning
 Synopsis:	A library for parsing and representing planning languages
 Build-Depends:        base
+
+source-repository head
+    type:   git
+    location: git://github.com/ronwalf/Planning.git
+    branch: master
+
+source-repository this
+    type:   git
+    location: git://github.com/ronwalf/Planning.git
+    tag: release-0.2
 
 Executable pddlcheck
     Main-Is: pddlcheck.hs
