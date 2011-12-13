@@ -1,4 +1,4 @@
-Name:		Planning
+Name:		planning
 Version:	0.2
 Cabal-Version:  >= 1.2
 Build-Type:     Simple
@@ -25,8 +25,7 @@ Executable pddlcheck
     Main-Is: pddlcheck.hs
     Build-Depends:
     Hs-Source-Dirs: src
-    GHC-Options:
-        -O -Wall
+    GHC-Options: -O2 -Wall
 
 Library
   Hs-Source-Dirs: src
@@ -41,10 +40,6 @@ Library
         Planning.PDDL.Representation, 
         Planning.PDDL.Pond, Planning.PDDL.NDPDDL, Planning.PDDL.FF
   ghc-options:
-        -O -Wall
+        -O2 -Wall
 
-Test-Suite test-planning
-  type: detailed-1.0
-  test-module: Planning.Test
-  build-depends: base, Cabal >= 1.9.2
 
