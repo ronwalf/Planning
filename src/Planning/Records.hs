@@ -127,6 +127,14 @@ class (Data a, Typeable f) => HasActions f a | a -> f where
     setActions :: [f] -> a -> a
     setActions pl r = fromJust $ greplace r (Actions pl)
 
+data Derived f = Derived [f] deriving (Eq, Show, Data, Typeable)
+unDerived :: Derived f -> [f]
+unDerived (Derived a) = a
+class (Data a, Typeable f) => HasDerived f a | a -> f where
+    getDerived :: a -> [f]
+    getDerived = unDerived . fromJust . gfind
+    setDerived :: [f] -> a -> a
+    setDerived pl r = fromJust $ greplace r (Derived pl)
 
 data Parameters f = Parameters [f] deriving (Eq, Show, Data, Typeable)
 unParameters :: Parameters f -> [f]
@@ -137,22 +145,22 @@ class (Data a, Typeable f) => HasParameters f a | a -> f where
     setParameters :: [f] -> a -> a
     setParameters pl r = fromJust $ greplace r (Parameters pl)
 
-data Precondition f = Precondition (Maybe f) deriving (Eq, Show, Data, Typeable)
-unPrecondition :: Precondition f -> Maybe f
+data Precondition f = Precondition [f] deriving (Eq, Show, Data, Typeable)
+unPrecondition :: Precondition f -> [f]
 unPrecondition (Precondition a) = a
 class (Data a, Typeable f) => HasPrecondition f a | a -> f where
-    getPrecondition :: a -> Maybe f
+    getPrecondition :: a -> [f]
     getPrecondition = unPrecondition . fromJust . gfind
-    setPrecondition :: Maybe f -> a -> a
+    setPrecondition :: [f] -> a -> a
     setPrecondition pre r = fromJust $ greplace r (Precondition pre)
 
-data Effect f = Effect (Maybe f) deriving (Eq, Show, Data, Typeable)
-unEffect :: Effect f -> Maybe f
+data Effect f = Effect [f] deriving (Eq, Show, Data, Typeable)
+unEffect :: Effect f -> [f]
 unEffect (Effect a) = a
 class (Data a, Typeable f) => HasEffect f a | a -> f where
-    getEffect :: a -> Maybe f
+    getEffect :: a -> [f]
     getEffect = unEffect . fromJust . gfind
-    setEffect :: Maybe f -> a -> a
+    setEffect :: [f] -> a -> a
     setEffect eff r = fromJust $ greplace r (Effect eff)
 
 

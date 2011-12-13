@@ -27,9 +27,9 @@ type NDEffectDExpr = Expr NDEffectD
 
 ndEffectDParsing :: (OneOf :<: f,
         Not :<: f,
-        And :<: f,
-        When GDExpr :<: f,
-        ForAll TypedVarExpr :<: f,
+        --And :<: f,
+        --When GDExpr :<: f,
+        --ForAll TypedVarExpr :<: f,
         Atomic TermExpr :<: f) =>
     TokenParser st
     -> CharParser st (Expr f)
@@ -42,21 +42,28 @@ ndEffectDParser :: T.TokenParser a -> CharParser a NDEffectDExpr
 ndEffectDParser mylex =
     ndEffectDParsing mylex (ndEffectDParser mylex)
 
+type NDPDDLEffect = ([TypedVarExpr], Maybe GDExpr, [NDEffectDExpr])
+type NDPDDLAction = Action PDDLPrecond NDPDDLEffect 
 
-type NDPDDLAction = Action PreferenceGDExpr NDEffectDExpr
 
-
-type NDPDDLDomain = Domain ConstraintGDExpr NDPDDLAction
+type NDPDDLDomain = Domain ConstraintGDExpr NDPDDLAction GDExpr
 
 
 ndpddlDomainParser :: CharParser NDPDDLDomain NDPDDLDomain
 ndpddlDomainParser =
     let
         constraintP = constraintGDParser pddlExprLexer :: CharParser NDPDDLDomain ConstraintGDExpr
-        prefGDP = prefGDParser pddlExprLexer :: CharParser NDPDDLDomain PreferenceGDExpr
-        effectP = ndEffectDParser pddlExprLexer :: CharParser NDPDDLDomain NDEffectDExpr
+        prefP = prefListParser pddlExprLexer (gdParser pddlExprLexer :: CharParser NDPDDLDomain GDExpr)
+        effectP = ucEffectParser pddlExprLexer
+            (gdParser pddlExprLexer :: CharParser NDPDDLDomain GDExpr)
+            (ndEffectDParser pddlExprLexer :: CharParser NDPDDLDomain NDEffectDExpr)
     in
-    domainParser pddlDescLexer
+    domainParser pddlDescLexer $
         (domainInfoParser pddlDescLexer constraintP)
-        (actionParser pddlDescLexer prefGDP effectP)
+        <|>
+        derivedParser pddlDescLexer
+          (atomicTypeParser pddlExprLexer (varParser pddlExprLexer) :: CharParser st TypedPredicateExpr)
+          (gdParser pddlExprLexer)
+        <|>
+        (actionParser pddlDescLexer prefP effectP)
 

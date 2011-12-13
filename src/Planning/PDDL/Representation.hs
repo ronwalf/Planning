@@ -241,7 +241,7 @@ docMaybe f (Just x) = f x
 ------------------------------
 -- Domain Description
 ------------------------------
-data Domain a b = Domain 
+data Domain a b g = Domain 
     Name
     Requirements
     (Types TypedTypeExpr)
@@ -249,20 +249,22 @@ data Domain a b = Domain
     (Predicates TypedPredicateExpr)
     (Functions TypedFuncSkelExpr)
     (Constraints a)
+    (Derived (TypedPredicateExpr, g))
     (Actions b)
     deriving (Data, Eq, Typeable)
 
-instance (Data a, Data b) => HasName (Domain a b)
-instance (Data a, Data b) => HasRequirements (Domain a b)
-instance (Data a, Data b) => HasTypes TypedTypeExpr (Domain a b)
-instance (Data a, Data b) => HasConstants TypedConstExpr (Domain a b)
-instance (Data a, Data b) => HasPredicates TypedPredicateExpr (Domain a b)
-instance (Data a, Data b) => HasFunctions TypedFuncSkelExpr (Domain a b)
-instance (Data a, Data b) => HasConstraints a (Domain a b)
-instance (Data a, Data b) => HasActions b (Domain a b)
+instance (Data a, Data b, Data g) => HasName (Domain a b g)
+instance (Data a, Data b, Data g) => HasRequirements (Domain a b g)
+instance (Data a, Data b, Data g) => HasTypes TypedTypeExpr (Domain a b g)
+instance (Data a, Data b, Data g) => HasConstants TypedConstExpr (Domain a b g)
+instance (Data a, Data b, Data g) => HasPredicates TypedPredicateExpr (Domain a b g)
+instance (Data a, Data b, Data g) => HasFunctions TypedFuncSkelExpr (Domain a b g)
+instance (Data a, Data b, Data g) => HasConstraints a (Domain a b g)
+instance (Data a, Data b, Data g) => HasDerived (TypedPredicateExpr, g) (Domain a b g)
+instance (Data a, Data b, Data g) => HasActions b (Domain a b g)
 
-instance (Data a, Data b, PDDLDoc a, PDDLDoc b) =>
-    PDDLDoc (Domain a b) where
+instance (Data a, Data b, Data g, PDDLDoc a, PDDLDoc b, PDDLDoc g) =>
+    PDDLDoc (Domain a b g) where
     pddlDoc domain = parens $ ($$) (text "define") $ vcat $
         parens (text "domain" <+> text (getName domain)) :
          -- Requirement strings are prefixed with ':'
@@ -276,9 +278,15 @@ instance (Data a, Data b, PDDLDoc a, PDDLDoc b) =>
         maybe empty (\constr -> parens $ sep [text ":constraints", pddlDoc constr])
             (getConstraints domain) :
         space :
-        intersperse space (map pddlDoc $ getActions domain)
+        intersperse space (
+          (flip map (getDerived domain) (\(p,b) ->
+            parens $ sep $ 
+              [ text ":derived"
+              , pddlDoc p
+              , pddlDoc b ]))
+          ++ (map pddlDoc $ getActions domain))
 
-emptyDomain :: forall a b. Domain a b
+emptyDomain :: forall a b g. Domain a b g
 emptyDomain = Domain 
     (Name "empty") 
     (Requirements []) 
@@ -287,6 +295,7 @@ emptyDomain = Domain
     (Predicates [])
     (Functions [])
     (Constraints Nothing)
+    (Derived [])
     (Actions [])
 
 ------------------------------
@@ -296,24 +305,50 @@ data Action p e = Action Name
     (Parameters TypedVarExpr)
     (Precondition p)
     (Effect e)
-    deriving (Data, Typeable)
+    deriving (Data,Typeable, Eq)
 instance (Data p, Data e) => HasName (Action p e)
 instance (Data p, Data e) => HasParameters TypedVarExpr (Action p e)
 instance (Data p, Data e) => HasPrecondition p (Action p e)
 instance (Data p, Data e) => HasEffect e (Action p e)
 defaultAction :: (Data p, Data e) => Action p e
-defaultAction = Action (Name "empty") (Parameters []) (Precondition Nothing) (Effect Nothing)
+defaultAction = Action (Name "empty") (Parameters []) (Precondition []) (Effect [])
 
 --instance (Data (Expr p), Data (Expr e), PDDLDocExpr p, PDDLDocExpr e) => 
 --    PDDLDoc (Action (Expr p) (Expr e)) where
-instance (Data p, Data e, PDDLDoc p, PDDLDoc e) => PDDLDoc (Action p e) where
+instance (Data p, Data t, Data ep, Data e, PDDLDoc p, PDDLDoc [t], PDDLDoc ep, PDDLDoc e) 
+    => PDDLDoc (Action (Maybe String, p) ([t], Maybe ep, [e])) where
     pddlDoc a = parens $ sep [
         text ":action" <+> (text $ getName a),
         --text ":parameters" <+> (parens $ hsep $ map pddlDoc $ getParameters a), 
         text ":parameters" <+> (parens $ pddlDoc $ getParameters a),
-        docMaybe ((text ":precondition" <+>) . pddlDoc) $ getPrecondition a,
-        docMaybe ((text ":effect" <+>) . pddlDoc) $ getEffect a]
+        docList ((text ":precondition" <+>) . andDoc prefDoc) $ getPrecondition a,
+        docList ((text ":effect" <+>) . andDoc id . concatMap effectDoc) $ getEffect a]
+        where
+            andDoc :: forall a . (a -> Doc) -> [a] -> Doc
+            andDoc f [t] = f t
+            andDoc f tl = parens $ sep $
+                text "and"
+                : map f tl
+            prefDoc :: (Maybe String, p) -> Doc
+            prefDoc (Nothing, p) = pddlDoc p
+            prefDoc (Just n, p) = parens $ sep [
+                text "preference",
+                text n,
+                pddlDoc p ]
+            effectDoc :: ([t], Maybe ep, [e]) -> [Doc]
+            effectDoc ([], ep, el) = condDoc ep el
+            effectDoc (tl, ep, el) = [parens $ sep [
+                text "forall",
+                parens (pddlDoc tl),
+                andDoc id $ condDoc ep el]]
+            condDoc :: Maybe ep -> [e] -> [Doc]
+            condDoc Nothing el = map pddlDoc el
+            condDoc (Just ep) el = [parens $ sep [
+                text "when",
+                pddlDoc ep,
+                andDoc pddlDoc el ]]
 
+                
 
 -------------------------------
 -- Problem Description

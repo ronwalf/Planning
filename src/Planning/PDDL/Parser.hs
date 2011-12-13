@@ -22,16 +22,22 @@ module Planning.PDDL.Parser (
     atomicParser,
     atomicTypeParser,
     andParser,
+    andListParser,
     orParser,
     notParser,
     implyParser,
     whenParser,
+    conditionalParser,
     forallParser,
+    universalParser,
     existsParser,
     preferenceParser,
+    prefListParser,
     oneOfParser,
     unknownParser,
+    emptyOrParser,
     maybeParser,
+    derivedParser,
     actionParser,
     actionInfoParser,
     effectParser,
@@ -42,6 +48,8 @@ module Planning.PDDL.Parser (
 
 import Control.Monad (liftM)
 import Data.Data
+import Data.Function (on)
+import Data.List (deleteFirstsBy)
 import Data.Maybe (catMaybes)
 import Text.ParserCombinators.Parsec
 import qualified Text.ParserCombinators.Parsec.Token as T
@@ -67,14 +75,19 @@ baseLanguage = T.LanguageDef {
 }
 
 pddlDescLanguage :: T.LanguageDef st
-pddlDescLanguage = baseLanguage {
+pddlDescLanguage = baseLanguage 
+    {- -- Reserved names are always in syntactically distinct locations from identifiers
+       -- ... meaning we don't need to reserve them.
+    {
     T.reservedNames = [ 
         "-", -- Types
         ":constants", ":constraints", "define", "domain", ":functions", ":predicates", ":requirements", ":types", -- Domain info
+        ":derived", -- Derived predicates
         ":objects", "problem", ":domain",-- Problem info
         ":action", ":effect", ":parameters", ":precondition" -- Action info
         ]
-}
+    }
+    -}
 
 pddlExprLanguage :: T.LanguageDef st
 pddlExprLanguage = baseLanguage {
@@ -130,24 +143,21 @@ parseTypedVar mylex = do
 -}
 
 -- | The domain parser takes a pddlLexer, an domain item parser, and a domain sink
-domainParser :: (HasName b, HasActions t b) =>
+domainParser :: (HasName b, HasActions a b, HasDerived d b) =>
     T.TokenParser b 
     -> CharParser b ()
-    -> CharParser b ()
     -> CharParser b b
-domainParser mylex infoParser domainItemParser = T.whiteSpace mylex >> T.parens mylex (do
+domainParser mylex infoParser = T.whiteSpace mylex >> T.parens mylex (do
     T.reserved mylex "define"
     T.parens mylex $ (do
         T.reserved mylex "domain"
         name <- T.identifier mylex
         updateState (setName name)
         )
-    _ <- many $ T.parens mylex (
-        infoParser
-        <|>
-        domainItemParser
-        )
-    updateState (\d -> setActions (reverse $ getActions d) d)
+    skipMany $ T.parens mylex infoParser
+    updateState (\d -> 
+        setDerived (reverse $ getDerived d) $
+        setActions (reverse $ getActions d) d)
     getState
     )
 
@@ -162,7 +172,7 @@ problemParser mylex probInfoParser = T.whiteSpace mylex >> T.parens mylex (do
         name <- T.identifier mylex
         updateState (setName name)
         )
-    _ <- many $ T.parens mylex probInfoParser
+    skipMany $ T.parens mylex probInfoParser
     getState)
 
 constParser :: (:<:) Const t => T.TokenParser a -> CharParser a (Expr t)
@@ -223,6 +233,35 @@ andParser mylex exprP = do
     parts <- many $ T.parens mylex exprP
     return $ eAnd parts
 
+{-|
+  andListParserparses a potentially( list (innerP) expressions which
+  If 'innerP' parses expressions of the form <inner>, then 'andListParser'
+  parses expressions of the form:
+
+   * <inner>
+   * and (inner) ... (inner)
+   * and (and (inner) ... (inner)) (inner)
+
+   and so forth.  Returns a flat list of return values of 'innerP'
+
+-}
+
+
+andListParser ::
+    T.TokenParser st
+    -> CharParser st f
+    -> CharParser st [f]
+andListParser mylex innerP = do
+    andP <|> partP
+    where
+    andP = do
+        try $ T.reserved mylex "and"
+        parts <- many $ T.parens mylex (andListParser mylex innerP)
+        return $ concat parts
+    partP = do
+        p <- innerP
+        return [p]
+
 orParser :: (Or :<: f) =>
     T.TokenParser st
     -> CharParser st (Expr f)
@@ -262,6 +301,37 @@ whenParser mylex condP exprP = do
     eff <- T.parens mylex exprP
     return $ eWhen cond eff
 
+{-|
+  If 'condP' and 'innerP' parse expressions of the form <cond> and <inner>
+  respetively, then 'conditionalParser' parses expressions of the form:
+
+  * <inner>
+  * when (<cond>) (<inner>)
+  * and (<inner>) (when (<cond>) (<inner>))
+
+  and so forth.  Returns the concatenated results of 'innerP'.
+
+-}
+conditionalParser :: forall st p e .
+    T.TokenParser st
+    -> CharParser st p
+    -> (Maybe p -> CharParser st [e])
+    -> CharParser st [e]
+conditionalParser mylex condP innerP =
+    liftM concat $
+    andListParser mylex (whenP <|> partP)
+    where
+    whenP :: CharParser st [e]
+    whenP = do
+        try $ T.reserved mylex "when"
+        cond <- T.parens mylex condP
+        T.parens mylex $ 
+            T.parens mylex $
+            innerP $
+            Just cond
+    partP :: CharParser st [e]
+    partP = innerP Nothing
+
 forallParser :: (ForAll TypedVarExpr :<: f) =>
     T.TokenParser st
     -> CharParser st (Expr f)
@@ -271,6 +341,37 @@ forallParser mylex exprP = do
     vars <- T.parens mylex $ parseTypedList mylex $ varParser mylex
     cond <- T.parens mylex exprP
     return $ eForAll (vars :: [TypedVarExpr]) cond
+
+{-| 
+  If 'innerP' takes a list of 'TypedVarExpr' and parses expressions
+  of the form <inner>, then 'innerP' parses expressions of the form:
+  
+  * <inner>
+  * forall (typed var list) (<inner>)
+  * and (inner) (forall (typed var list) (<inner>)) ...
+  * forall (tvar list) (forall (tvar list) (<inner>))
+
+  and so forth.  'universalParser' concantenates and returns the return
+  values of 'innerP'.  The var list passed to 'innerP' will only
+  have the relevant variables, not ones that have been replaced by inner bindings.
+-}
+universalParser ::
+    T.TokenParser st
+    -> ([TypedVarExpr] -> CharParser st [a])
+    -> CharParser st [a]
+universalParser mylex innerP = do
+    universalP' []
+    where
+    universalP' vars = liftM concat $
+        andListParser mylex (forallP vars <|> innerP vars)
+    newVars vars vars' =
+        vars' ++
+        deleteFirstsBy ((==) `on` removeType) vars vars'
+    forallP vars = do
+        try $ T.reserved mylex "forall"
+        vars' <- T.parens mylex $ parseTypedList mylex $ varParser mylex
+        T.parens mylex $ universalP' $ newVars vars vars'
+
 
 existsParser :: (Exists TypedVarExpr :<: f) =>
     T.TokenParser st
@@ -292,6 +393,38 @@ preferenceParser mylex exprP = do
     expr <- T.parens mylex exprP
     return $ ePreference name expr
 
+
+{-|
+  If 'innerP' parses expressions of the form 'inner', 
+  'prefListParser' parses expressions of the form:
+
+  * <inner>
+  * preference <name> <inner>
+  * and (inner) ... (inner)
+  * and (preference <name> <inner>) ... (inner)
+  * and (and ...) (inner)
+
+  and so forth.  Returns a list of 'innerP' return values,
+  annotated by the preference name, if it existed.
+-}
+
+prefListParser ::
+    T.TokenParser st
+    -> CharParser st f
+    -> CharParser st [(Maybe String, f)]
+prefListParser mylex innerP = do
+    andListParser mylex (prefP <|> partP)
+    where
+    nameP = (try $ T.identifier mylex) <|> (return "")
+    prefP = do
+        try $ T.reserved mylex "preference"
+        name <- nameP
+        inner <- innerP
+        return (Just name, inner)
+    partP = do
+        inner <- innerP
+        return (Nothing, inner)
+
 oneOfParser :: (OneOf :<: f) =>
     T.TokenParser st
     -> CharParser st (Expr f)
@@ -309,6 +442,22 @@ unknownParser mylex exprP = do
     try $ T.reserved mylex "unknown"
     part <- T.parens mylex exprP
     return $ eUnknown part
+
+{-|
+If 'p' parses expressions of the form <p> and returns a list,
+'emptyOrParser' parses expressions of the form:
+
+ * () 
+ * (<p>)
+
+Returns [] for '()', otherwise returns the value from 'p'
+-}
+emptyOrParser :: T.TokenParser st
+    -> CharParser st [a]
+    -> CharParser st [a]
+emptyOrParser mylex p = 
+    T.parens mylex $
+    option [] p
 
 maybeParser :: T.TokenParser st
     -> CharParser st a
@@ -407,13 +556,25 @@ collect collector parser =
     <|>
     return collector
 
+derivedParser :: (Data (p, g),
+        HasDerived (p, g) st) =>
+    T.TokenParser st
+    -> CharParser st p
+    -> CharParser st g
+    -> CharParser st ()
+derivedParser mylex headP bodyP = do
+    try $ T.reserved mylex ":derived"
+    h <- T.parens mylex $ headP
+    b <- T.parens mylex $ bodyP
+    updateState (\d -> setDerived ((h, b) : getDerived d) d)
+
 actionParser :: (Data p,
         Data e,
         HasActions (Action p e) st) =>
     T.TokenParser st
-    -> CharParser st p
-    -> CharParser st e
-    -> GenParser Char st ()
+    -> CharParser st [p]
+    -> CharParser st [e]
+    -> CharParser st ()
 actionParser mylex precondP effectP = do
     let infoParser = actionInfoParser mylex precondP effectP
     try $ T.reserved mylex ":action"
@@ -426,8 +587,8 @@ actionInfoParser :: (HasParameters TypedVarExpr a,
         HasPrecondition a1 a,
         HasEffect a2 a) =>
     T.TokenParser st
-    -> CharParser st a1
-    -> CharParser st a2
+    -> CharParser st [a1]
+    -> CharParser st [a2]
     -> CharParser st (a -> a)
 actionInfoParser mylex precondP effectP =
     paramParser mylex
@@ -438,11 +599,11 @@ actionInfoParser mylex precondP effectP =
 
 effectParser :: (HasEffect a a1) =>
         T.TokenParser st
-        -> CharParser st a
+        -> CharParser st [a]
         -> CharParser st (a1 -> a1)
 effectParser mylex condParser = do
     try $ T.reserved mylex ":effect"
-    effect <- maybeParser mylex condParser
+    effect <- emptyOrParser mylex condParser
     return $ setEffect effect
 
 paramParser :: (HasParameters TypedVarExpr a) =>
@@ -454,10 +615,10 @@ paramParser mylex = do
 
 precondParser :: (HasPrecondition a a1) =>
     T.TokenParser st
-    -> CharParser st a
+    -> CharParser st [a]
     -> CharParser st (a1 -> a1)
 precondParser mylex condParser = do
     try $ T.reserved mylex ":precondition"
-    precond <- maybeParser mylex condParser
+    precond <- emptyOrParser mylex condParser
     return $ setPrecondition precond
 
