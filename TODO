@@ -5,10 +5,10 @@ Numbers, assignment
 Math representation (binary ops, multi ops, comparisons - currently handled as atoms)
 Function parsing
 Durative actions
-Derived predicates
 
 Missing items for PDDL 3.0 problems:
 metric spec
 length spec
 
-
+Miscellaneous:
+Better testing for parsing library
