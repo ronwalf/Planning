@@ -273,6 +273,7 @@ instance (Data a, Data b, Data g, PDDLDoc a, PDDLDoc b, PDDLDoc g) =>
              map (text . (':':)) $ 
              "requirements" : getRequirements domain)) :
         docList (parens . sep . (text ":types" :) . (:[]) . pddlDoc) (getTypes domain) :
+        docList (parens . sep . (text ":constants" :) . (:[]) . pddlDoc) (getConstants domain) :
         docList (parens . sep . (text ":predicates" :) . map pddlDoc) (getPredicates domain) :
         docList (parens . sep . (text ":functions" :) . (:[]) . pddlDoc) (getFunctions domain) :
         maybe empty (\constr -> parens $ sep [text ":constraints", pddlDoc constr])
