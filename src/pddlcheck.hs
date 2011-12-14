@@ -11,18 +11,23 @@ import Text.ParserCombinators.Parsec
 import Text.ParserCombinators.Parsec.Char (noneOf)
 --(runParser, parse, (<|>), ParseError, CharParser)
 import qualified Text.ParserCombinators.Parsec.Token as T
-import Text.PrettyPrint (Doc, text)
+import Text.PrettyPrint (Doc, sep, text)
 
 import Planning.PDDL.PDDL3_0
 
+reparse :: (PDDLDoc a, Eq a, Monad m) =>
+    (String -> String -> m a) -> String -> String -> m (a,a)
+reparse aparser fname ftxt = do
+    parsed <- aparser fname ftxt
+    reparsed <- aparser "parsed" (show $ pddlDoc parsed)
+    return (parsed, reparsed)
 
 reparseCheck :: (PDDLDoc a, Eq a, Monad m) =>
     (String -> String -> m a) -> String -> String -> m Doc
 reparseCheck aparser fname ftxt = do
-    parsed <- aparser fname ftxt
-    reparsed <- aparser "parsed" (show $ pddlDoc parsed)
+    (parsed, reparsed) <- reparse aparser fname ftxt
     when (parsed /= reparsed) $
-        fail $ "Parsed file not equal to reparsed file: " ++ (show $ pddlDoc parsed) ++ (show $ pddlDoc reparsed)
+        fail $ "Parsed file not equal to reparsed file:\n" ++ (show $ pddlDoc parsed) ++ "\n" ++ (show $ pddlDoc reparsed)
     return $ pddlDoc parsed
     
     
