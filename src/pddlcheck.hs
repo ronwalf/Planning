@@ -4,14 +4,14 @@
 {-# LANGUAGE OverlappingInstances #-}
 module Main where
 
-import Control.Monad (liftM, when)
+import Control.Monad (when)
 import System.Environment
 import System.IO
 import Text.ParserCombinators.Parsec 
-import Text.ParserCombinators.Parsec.Char (noneOf)
+--import Text.ParserCombinators.Parsec.Char (noneOf)
 --(runParser, parse, (<|>), ParseError, CharParser)
 import qualified Text.ParserCombinators.Parsec.Token as T
-import Text.PrettyPrint (Doc, sep, text)
+import Text.PrettyPrint
 
 import Planning.PDDL.PDDL3_0
 
@@ -46,18 +46,18 @@ eitherParser fname ftxt =
 
         defineP p = do
             T.whiteSpace pddlDescLexer
-            T.symbol pddlDescLexer "("
+            _ <- T.symbol pddlDescLexer "("
             T.reserved pddlDescLexer "define"
-            doc <- T.parens pddlDescLexer p <?> "PDDL type"
+            doc <- T.parens pddlDescLexer p 
             return doc
         isDomP :: CharParser () (Either ParseError Doc)
         isDomP = do
             try $ T.reserved pddlDescLexer "domain"
-            T.identifier pddlDescLexer <?> "Domain name"
+            _ <- T.identifier pddlDescLexer 
             return domainP
         isProbP = do
             try $ T.reserved pddlDescLexer "problem"
-            T.identifier pddlDescLexer <?> "Problem name"
+            _ <- T.identifier pddlDescLexer 
             return problemP
         domainP :: Either ParseError Doc
         domainP = reparseCheck (runParser pddlDomainParser emptyDomain) fname ftxt
@@ -72,9 +72,9 @@ main = do
     mapM_ (\f -> do
         ftxt <- readFile f
         let res = eitherParser f ftxt
-        printResults f res) args
+        printResults res) args
     where
-        printResults f (Left err) = do
+        printResults (Left err) = do
             fail $ show err
-        printResults f (Right doc) = 
+        printResults (Right doc) = 
             print doc
