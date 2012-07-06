@@ -2,7 +2,8 @@
     -Wall
   #-}
 {-# LANGUAGE
-    FlexibleContexts
+    FlexibleContexts,
+    TypeOperators
   #-}
 module Planning.PDDL.FF ( ffOutParser ) where
 
