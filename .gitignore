@@ -1,2 +1,4 @@
 dist
 .dist-scion
+.dist-buildwrapper
+.project

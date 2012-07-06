@@ -2,7 +2,8 @@
     FlexibleContexts,
     OverlappingInstances,
     RankNTypes,
-    ScopedTypeVariables
+    ScopedTypeVariables,
+    TypeOperators
   #-}
 module Planning.PDDL.Parser (
     pddlDescLanguage,

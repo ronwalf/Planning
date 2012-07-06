@@ -33,7 +33,7 @@ instance (Functor f, Functor g) => Functor (f :+: g) where
     fmap f (Inr e2) = Inr (fmap f e2)
 
 instance (Typeable1 f, Typeable1 g) => Typeable1 (f :+: g) where
-    typeOf1 l = mkTyConApp (mkTyCon "Planning.Wouter.:+:") [typeOf1 x, typeOf1 y] where
+    typeOf1 l = mkTyConApp (mkTyCon3 "Planning" "Wouter" ":+:") [typeOf1 x, typeOf1 y] where
         Inl x = (Inl undefined) `asTypeOf` l
         Inr y = (Inr undefined) `asTypeOf` l
 
@@ -60,7 +60,7 @@ instance (Functor f, Functor g, Functor h, (:<:) f g) => (:<:) f (h :+: g) where
 
 newtype Expr f = In (f (Expr f))
 instance Typeable1 f => Typeable (Expr f) where
-    typeOf e = mkTyConApp (mkTyCon "Planning.Wouter.Expr") [typeOf1 x]
+    typeOf e = mkTyConApp (mkTyCon3 "Planning" "Wouter" "Expr") [typeOf1 x]
         where In x = (In undefined) `asTypeOf` e
 deriving instance (Typeable1 a, Data (a (Expr a))) => Data (Expr a)
 
