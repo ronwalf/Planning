@@ -105,27 +105,27 @@ instance PDDLDocExpr And where
     pddlDocExpr (And el) = parens $ sep $ text "and" : [pddlDocExpr e | In e <- el]
 
 instance PDDLDocExpr (Exists TypedVarExpr) where
-    pddlDocExpr (Exists vl (In e)) = parens $ sep [
+    pddlDocExpr (Exists vl e) = parens $ sep [
         text "exists",
         parens (pddlDoc vl),
-        pddlDocExpr e ]
+        pddlDoc e ]
 
 instance PDDLDocExpr (ForAll TypedVarExpr) where
-    pddlDocExpr (ForAll vl (In e)) = parens $ sep [
+    pddlDocExpr (ForAll vl e) = parens $ sep [
         text "forall",
         parens (pddlDoc vl),
-        pddlDocExpr e ]
+        pddlDoc e ]
     
 instance PDDLDocExpr Imply where
-    pddlDocExpr (Imply (In e1) (In e2)) = parens $ sep [
+    pddlDocExpr (Imply e1 e2) = parens $ sep [
         text "implies",
-        pddlDocExpr e1,
-        pddlDocExpr e2]
+        pddlDoc e1,
+        pddlDoc e2]
 
 instance PDDLDocExpr Not where
-    pddlDocExpr (Not (In e)) = parens $ sep [
+    pddlDocExpr (Not e) = parens $ sep [
         text "not",
-        pddlDocExpr e]
+        pddlDoc e]
 
 instance PDDLDocExpr Or where
     pddlDocExpr (Or el) = parens $ sep $ text "or" : [pddlDocExpr e | In e <- el]
