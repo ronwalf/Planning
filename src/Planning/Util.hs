@@ -429,5 +429,3 @@ unify e1 e2 = do
         | v `elem` l = newVarName (eVar (vn ++ "_")) l
         | otherwise =  v
 
-class (Functor f, Functor g) => Unifiable f g where
-    unify' m
