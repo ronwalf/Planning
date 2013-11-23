@@ -327,7 +327,6 @@ conditionalParser mylex condP innerP =
         try $ T.reserved mylex "when"
         cond <- T.parens mylex condP
         T.parens mylex $ 
-            T.parens mylex $
             innerP $
             Just cond
     partP :: CharParser st [e]

@@ -277,59 +277,59 @@ instance OneOfFindable OneOf g where
     findOneOf' (OneOf el) = concat el
 
 -- Variable Subsitution
-class (Functor f) => TermSubstitution t f g where
-    substituteTerm' :: [(Expr Var, t)] -> f (Expr g) -> Expr g
-substituteTerm :: TermSubstitution t f f => [(Expr Var, t)] -> Expr f -> Expr f
-substituteTerm vsl (In e) = substituteTerm' vsl e
+class (Functor f) => VarSubstitution t f g where
+    substituteVar' :: Expr Var -> t -> f (Expr g) -> Expr g
+substituteVar :: VarSubstitution t f f => Expr Var -> t -> Expr f -> Expr f
+substituteVar v t (In e) = substituteVar' v t e
+substituteVars :: VarSubstitution t f f => [(Expr Var, t)] -> Expr f -> Expr f
+substituteVars vsl = flip (foldl (\e' (v, t) -> substituteVar v t e')) vsl
 
-instance (TermSubstitution t f h, TermSubstitution t g h) => TermSubstitution t (f :+: g) h where
-    substituteTerm' vsl (Inl x) = substituteTerm' vsl x
-    substituteTerm' vsl (Inr y) = substituteTerm' vsl y
+instance (VarSubstitution t f h, VarSubstitution t g h) => VarSubstitution t (f :+: g) h where
+    substituteVar' v t (Inl x) = substituteVar' v t x
+    substituteVar' v t (Inr y) = substituteVar' v t y
 
-instance (Var :<: t) => TermSubstitution (Expr t) Var t where
-    substituteTerm' vsl (Var v) = 
-        fromMaybe (eVar v) $ 
-        lookup (eVar v :: Expr Var) vsl
+instance (Var :<: t) => VarSubstitution (Expr t) Var t where
+    substituteVar' v t (Var v') = if eVar v' == v then t else eVar v'
 
-instance (Const :<: f) => TermSubstitution t Const f where
-    substituteTerm' _ (Const c) = eConst c
+instance (Const :<: f) => VarSubstitution t Const f where
+    substituteVar' _ _ (Const c) = eConst c
 
-instance (Function :<: f, TermSubstitution t f f) => TermSubstitution t Function f where
-    substituteTerm' vsl (Function p tl) = eFunc p $ map (substituteTerm vsl) tl
+instance (Function :<: f, VarSubstitution t f f) => VarSubstitution t Function f where
+    substituteVar' v t (Function p tl) = eFunc p $ map (substituteVar v t ) tl
 
-instance (Typed (Expr d) :<: f, TermSubstitution t d d, TermSubstitution t f f) => TermSubstitution t (Typed (Expr d)) f where
-    substituteTerm' vsl (Typed d t) = eTyped (substituteTerm vsl d) t
+instance (Typed (Expr d) :<: f, VarSubstitution t d d, VarSubstitution t f f) => VarSubstitution t (Typed (Expr d)) f where
+    substituteVar' v t (Typed d ty) = eTyped (substituteVar v t d) ty
 
-instance (Atomic (Expr t) :<: f, TermSubstitution (Expr t) t t) => TermSubstitution (Expr t) (Atomic (Expr t)) f where
-    substituteTerm' vsl (Atomic p tl) = eAtomic p $ map (substituteTerm vsl) tl
+instance (Atomic (Expr t) :<: f, VarSubstitution (Expr t) t t) => VarSubstitution (Expr t) (Atomic (Expr t)) f where
+    substituteVar' v t (Atomic p tl) = eAtomic p $ map (substituteVar v t) tl
 
-instance (And :<: f, TermSubstitution t f f) => TermSubstitution t And f where
-    substituteTerm' vsl (And el) = eAnd $ map (substituteTerm vsl) el
+instance (And :<: f, VarSubstitution t f f) => VarSubstitution t And f where
+    substituteVar' v t (And el) = eAnd $ map (substituteVar v t) el
         
-instance (Or :<: f, TermSubstitution t f f) => TermSubstitution t Or f where
-    substituteTerm' vsl (Or el) = eOr $ map (substituteTerm vsl) el
+instance (Or :<: f, VarSubstitution t f f) => VarSubstitution t Or f where
+    substituteVar' v t (Or el) = eOr $ map (substituteVar v t) el
 
-instance (Not :<: f, TermSubstitution t f f) => TermSubstitution t Not f where
-    substituteTerm' vsl (Not e) = eNot $ substituteTerm vsl e
+instance (Not :<: f, VarSubstitution t f f) => VarSubstitution t Not f where
+    substituteVar' v t (Not e) = eNot $ substituteVar v t e
 
-instance (ForAll TypedVarExpr :<: f, TermSubstitution t f f) => TermSubstitution t (ForAll TypedVarExpr) f where
-    substituteTerm' vsl (ForAll vl e) =
-        let vsl' = filter (\(v, _) -> not $ v `elem` map removeType vl) vsl in
-        eForAll vl $ substituteTerm vsl' e
+instance (ForAll TypedVarExpr :<: f, VarSubstitution t f f) => VarSubstitution t (ForAll TypedVarExpr) f where
+    substituteVar' v t (ForAll vl e) = if v `elem` map removeType vl 
+        then eForAll vl e
+            else eForAll vl $ substituteVar v t e
 
-instance (Exists TypedVarExpr :<: f, TermSubstitution t f f) => TermSubstitution t (Exists TypedVarExpr) f where
-    substituteTerm' vsl (Exists vl e) =
-        let vsl' = filter (\(v, _) -> not $ v `elem` map removeType vl) vsl in
-        eExists vl $ substituteTerm vsl' e
+instance (Exists TypedVarExpr :<: f, VarSubstitution t f f) => VarSubstitution t (Exists TypedVarExpr) f where
+    substituteVar' v t (Exists vl e) = if v `elem` map removeType vl
+        then eExists vl e
+            else eExists vl $ substituteVar v t e
 
-instance (Imply :<: f, TermSubstitution t f f) => TermSubstitution t Imply f where
-    substituteTerm' vsl (Imply e1 e2) = eImply (substituteTerm vsl e1) (substituteTerm vsl e2)
+instance (Imply :<: f, VarSubstitution t f f) => VarSubstitution t Imply f where
+    substituteVar' v t (Imply e1 e2) = eImply (substituteVar v t e1) (substituteVar v t e2)
 
-instance (Preference :<: f, TermSubstitution t f f) => TermSubstitution t Preference f where
-    substituteTerm' vsl (Preference n e) = ePreference n $ substituteTerm vsl e
+instance (Preference :<: f, VarSubstitution t f f) => VarSubstitution t Preference f where
+    substituteVar' v t (Preference n e) = ePreference n $ substituteVar v t e
 
-instance (When (Expr p) :<: f, TermSubstitution t p p, TermSubstitution t f f) => TermSubstitution t (When (Expr p)) f where
-    substituteTerm' vsl (When p e) = eWhen (substituteTerm vsl p) (substituteTerm vsl e)
+instance (When (Expr p) :<: f, VarSubstitution t p p, VarSubstitution t f f) => VarSubstitution t (When (Expr p)) f where
+    substituteVar' v t (When p e) = eWhen (substituteVar v t p) (substituteVar v t e)
 
 
 -- Check for constants (Not counting types)
@@ -405,3 +405,29 @@ instance (At (Expr cg) :<: g, CFConversion cg c) => CFConversion g (At (Expr c))
         e' <- e
         return $ eAt (cg :: Expr cg) e'
 
+
+
+-- Return a var substitution list for unifying expr1 to expr 2
+-- Returns 
+unify :: forall m t f .
+    (Monad m 
+    , VarSubstitution (Expr t) f f, Var :<: t
+    , FreeVarsFindable f
+    ) => Expr f -> Expr f -> m [(Expr Var, Expr t)]
+unify e1 e2 = do
+    let vtl = renameVars (findFreeVars e1) (findFreeVars e2)
+    let e1' = substituteVars vtl e1
+    return undefined
+    where
+    renameVars :: [Expr Var] -> [Expr Var] -> [(Expr Var, Expr t)]
+    renameVars [] l = []
+    renameVars (v : vl) l
+        | v `elem` l = let v' = newVarName v l in (v, liftE v' :: Expr t) : renameVars vl (v' : l)
+        | otherwise = renameVars vl (v : l)
+    newVarName :: Expr Var -> [Expr Var] -> Expr Var
+    newVarName v@(In (Var vn)) l
+        | v `elem` l = newVarName (eVar (vn ++ "_")) l
+        | otherwise =  v
+
+class (Functor f, Functor g) => Unifiable f g where
+    unify' m
