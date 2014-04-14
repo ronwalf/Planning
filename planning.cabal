@@ -1,7 +1,7 @@
 Name:		planning
 Description: A type-safe, extensible PDDL parsing and representation library.
 Version:	0.2
-Cabal-Version:  >= 1.6
+Cabal-Version:  >= 1.8
 Build-Type:     Simple
 License:	BSD3
 License-File:	LICENSE
@@ -22,12 +22,6 @@ source-repository this
     location: git://github.com/ronwalf/Planning.git
     tag: release-0.2
 
-Executable pddlcheck
-    Main-Is: pddlcheck.hs
-    Build-Depends:
-    Hs-Source-Dirs: src
-    GHC-Options: -Wall
-
 Library
   Hs-Source-Dirs: src
   Build-Depends:
@@ -42,5 +36,15 @@ Library
         Planning.PDDL.Pond, Planning.PDDL.NDPDDL, Planning.PDDL.FF
   ghc-options:
         -Wall
+
+Executable pddlcheck
+    Main-Is: pddlcheck.hs
+    Build-Depends:
+        base >= 4 && < 5,
+        parsec >= 3,
+        pretty >= 1.0.1.0,
+        planning
+    Hs-Source-Dirs: src-cmdline
+    GHC-Options: -Wall
 
 

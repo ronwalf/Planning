@@ -10,7 +10,6 @@
 module Planning.Util where
 
 import Data.List
-import Data.Maybe
 import Control.Monad (liftM)
 
 import Planning.Expressions
