@@ -405,7 +405,7 @@ instance (At (Expr cg) :<: g, CFConversion cg c) => CFConversion g (At (Expr c))
         return $ eAt (cg :: Expr cg) e'
 
 
-
+{- Unfinished
 -- Return a var substitution list for unifying expr1 to expr 2
 -- Returns 
 unify :: forall m t f .
@@ -427,4 +427,4 @@ unify e1 e2 = do
     newVarName v@(In (Var vn)) l
         | v `elem` l = newVarName (eVar (vn ++ "_")) l
         | otherwise =  v
-
+-}
