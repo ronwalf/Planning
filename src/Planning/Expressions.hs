@@ -118,7 +118,7 @@ instance Eq t => FuncEq (Typed t) where
     funcEq (Typed e1 t1) (Typed e2 t2) = (e1 == e2) && (t1 == t2)
 instance Ord t => FuncOrd (Typed t) where
     funcCompare (Typed e1 t1) (Typed e2 t2) = compare (e1, t1) (e2, t2)
-class (Typed t :<: f) => TypedExpression t f | f -> t where
+class (Typed t :<: f) => TypedExpression t f where
     eTyped :: t -> [String] -> Expr f
 instance (Typed t :<:f) => TypedExpression t f where
     eTyped e t = inject (Typed e t)
@@ -166,7 +166,7 @@ instance (Ord t) => FuncOrd (Atomic t) where
     funcCompare (Atomic p1 tl1) (Atomic p2 tl2) = 
         compare (p1, tl1) (p2, tl2)
 
-class AtomicExpression t f | f -> t where
+class AtomicExpression t f where
     eAtomic :: String -> [t] -> Expr f
 instance (Atomic t :<: f) => AtomicExpression t f where
     eAtomic p tl = inject (Atomic p tl)
@@ -225,7 +225,7 @@ instance Eq v => FuncEq (ForAll v) where
 instance Ord v => FuncOrd (ForAll v) where
     funcCompare (ForAll vl1 e1) (ForAll vl2 e2) =
         compare (vl1, e1) (vl2, e2)
-class ForAllExpression v f | f -> v where
+class ForAllExpression v f where
     eForAll :: [v] -> Expr f -> Expr f
 instance (ForAll v :<: f) => ForAllExpression v f where
     eForAll [] e = e
@@ -239,7 +239,7 @@ instance Eq v => FuncEq (Exists v) where
 instance Ord v => FuncOrd (Exists v) where
     funcCompare (Exists vl1 e1) (Exists vl2 e2) =
         compare (vl1, e1) (vl2, e2)
-class ExistsExpression v f | f -> v where
+class ExistsExpression v f where
     eExists :: [v] -> Expr f -> Expr f
 instance (Exists v :<: f) => ExistsExpression v f where
     eExists [] e = e
@@ -254,7 +254,7 @@ instance Eq p => FuncEq (When p) where
 instance Ord p => FuncOrd (When p) where
     funcCompare (When p1 e1) (When p2 e2) = 
         compare (p1, e1) (p2, e2)
-class WhenExpression p f | f -> p where
+class WhenExpression p f where
     eWhen :: p -> Expr f -> Expr f
 instance (When p :<: f) => WhenExpression p f where
     eWhen p e = inject (When p e)
@@ -319,7 +319,7 @@ instance Eq t => FuncEq (At t) where
 instance Ord t => FuncOrd (At t) where
     funcCompare (At t1 e1) (At t2 e2) = 
         compare (t1, e1) (t2, e2)
-class AtExpression t f | f -> t where
+class AtExpression t f where
     eAt :: t -> Expr f -> Expr f
 instance (At t :<: f) => AtExpression t f where
     eAt t e = inject (At t e)
@@ -332,7 +332,7 @@ instance Eq t => FuncEq (Over t) where
 instance Ord t => FuncOrd (Over t) where
     funcCompare (Over t1 e1) (Over t2 e2) = 
         compare (t1, e1) (t2, e2)
-class OverExpression t f | t -> f where
+class OverExpression t f where
     eOver :: t -> Expr f -> Expr f
 instance (Over t :<: f) => OverExpression t f where
     eOver t e = inject (Over t e)

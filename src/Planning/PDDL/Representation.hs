@@ -54,6 +54,7 @@ instance PDDLDocExpr f => PDDLDoc (Expr f) where
     pddlDoc (In x) = pddlDocExpr x
 
 instance (PDDLDocExpr f, PDDLDocExpr g) => PDDLDocExpr (f :+: g) where
+    {-# NOINLINE pddlDocExpr #-}
     pddlDocExpr (Inr x) = pddlDocExpr x
     pddlDocExpr (Inl y) = pddlDocExpr y
 

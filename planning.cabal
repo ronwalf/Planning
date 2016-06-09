@@ -10,7 +10,6 @@ Maintainer: Ron Alford <ronwalf@volus.net>
 Homepage:	https://github.com/ronwalf/Planning
 Category:	AI, Planning
 Synopsis:	A library for parsing and representing planning languages
-Build-Depends:        base
 
 source-repository head
     type:   git
@@ -45,6 +44,6 @@ Executable pddlcheck
         pretty >= 1.0.1.0,
         planning
     Hs-Source-Dirs: src-cmdline
-    GHC-Options: -Wall
+    GHC-Options: -Wall 
 
 

@@ -32,14 +32,18 @@ instance (Functor f, Functor g) => Functor (f :+: g) where
     fmap f (Inl e1) = Inl (fmap f e1)
     fmap f (Inr e2) = Inr (fmap f e2)
 
+{-
 instance (Typeable1 f, Typeable1 g) => Typeable1 (f :+: g) where
     typeOf1 l = mkTyConApp (mkTyCon3 "Planning" "Wouter" ":+:") [typeOf1 x, typeOf1 y] where
         Inl x = (Inl undefined) `asTypeOf` l
         Inr y = (Inr undefined) `asTypeOf` l
+-}
+
+deriving instance Typeable (:+:)
 
 deriving instance (
-   Typeable1 f,
-    Typeable1 g,
+    Typeable f,
+    Typeable g,
     Typeable e,
     Data (f e),
     Data (g e))
@@ -59,10 +63,13 @@ instance (Functor f, Functor g, Functor h, (:<:) f g) => (:<:) f (h :+: g) where
     inj = Inr . inj
 
 newtype Expr f = In (f (Expr f))
+{-
 instance Typeable1 f => Typeable (Expr f) where
     typeOf e = mkTyConApp (mkTyCon3 "Planning" "Wouter" "Expr") [typeOf1 x]
         where In x = (In undefined) `asTypeOf` e
-deriving instance (Typeable1 a, Data (a (Expr a))) => Data (Expr a)
+-}
+deriving instance Typeable Expr
+deriving instance (Typeable a, Data (a (Expr a))) => Data (Expr a)
 
 inject :: (g :<: f) => g (Expr f) -> Expr f
 inject = In . inj
@@ -78,6 +85,7 @@ class Functor f => FuncEq f where
     funcEq :: FuncEq g => f (Expr g) -> f (Expr g) -> Bool
 
 instance (FuncEq f, FuncEq g) => FuncEq (f :+: g) where
+    {-# NOINLINE funcEq #-}
     funcEq (Inl x) (Inl y) = funcEq x y
     funcEq (Inr x) (Inr y) = funcEq x y
     funcEq _ _ = False
