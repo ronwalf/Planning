@@ -1,6 +1,8 @@
 {-# LANGUAGE
+    AllowAmbiguousTypes,
     FlexibleContexts,
     FlexibleInstances,
+    FunctionalDependencies,
     MultiParamTypeClasses,
     OverlappingInstances,
     ScopedTypeVariables,
@@ -93,7 +95,7 @@ instance ((:<:) And g, (:<:) Or g, NNF g g) => NNF And g where
 
 instance ((:<:) And g, (:<:) Or g, NNF g g) => NNF Or g where
     nnf' True (Or el) = eOr [nnf' True e | In e <-  el]
-    nnf' False (Or el) = eAnd [nnf' True e | In e <-  el]
+    nnf' False (Or el) = eAnd [nnf' False e | In e <-  el]
 
 instance ((:<:) (Exists t) g, (:<:) (ForAll t) g, NNF g g) => NNF (Exists t) g where
     nnf' True (Exists vl (In e)) = eExists vl $ nnf' True e
@@ -194,6 +196,8 @@ instance (AtomsFindable f g, AtomsFindable h g) => AtomsFindable (f :+: h) g whe
     findAtoms' (Inr y) = findAtoms' y
 instance AtomsFindable (Atomic g) g where
     findAtoms' (Atomic p tl) = [eAtomic p tl]
+instance AtomsFindable (At f) g where
+    findAtoms' (At _ _) = []
 instance AtomsFindable And g where
     findAtoms' (And el) = concat el
 instance AtomsFindable Or g where
@@ -389,7 +393,7 @@ instance (Function :<: g) => CFConversion g Function where
         gtl <- sequence tl
         return $ eFunc f gtl
 instance (Atomic (Expr ct) :<: g, CFConversion ct t) => CFConversion g (Atomic (Expr t)) where
-    cfConversion' (Atomic p tl) = do
+    cfConversion' (Atomic p (tl :: [Expr t])) = do
         ctl <- sequence $ map cfConversion tl
         return $ eAtomic p (ctl :: [Expr ct])
 instance (Not :<: g) => CFConversion g Not where
