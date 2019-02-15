@@ -1,5 +1,5 @@
 {-# OPTIONS_GHC
-    -fcontext-stack=30
+    -freduction-depth=30
   #-}
 {-# LANGUAGE
     FlexibleContexts,
@@ -43,7 +43,7 @@ ndEffectDParser mylex =
     ndEffectDParsing mylex (ndEffectDParser mylex)
 
 type NDPDDLEffect = ([TypedVarExpr], Maybe GDExpr, [NDEffectDExpr])
-type NDPDDLAction = Action PDDLPrecond NDPDDLEffect 
+type NDPDDLAction = Action PDDLPrecond NDPDDLEffect
 
 
 type NDPDDLDomain = Domain ConstraintGDExpr NDPDDLAction GDExpr
@@ -66,4 +66,3 @@ ndpddlDomainParser =
           (gdParser pddlExprLexer)
         <|>
         (actionParser pddlDescLexer prefP effectP)
-

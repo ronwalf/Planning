@@ -1,6 +1,6 @@
 Name:		planning
 Description: A type-safe, extensible PDDL parsing and representation library.
-Version:	0.2
+Version:	0.2.1
 Cabal-Version:  >= 1.8
 Build-Type:     Simple
 License:	BSD3

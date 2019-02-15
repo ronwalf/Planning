@@ -1,5 +1,5 @@
 {-# OPTIONS_GHC
-    -fcontext-stack=30
+    -freduction-depth=30
   #-}
 {-# LANGUAGE
     FlexibleContexts,
@@ -79,7 +79,7 @@ initLiteralParser myLex =
     atomicParser myLex (constTermParser myLex)
 
 
-type GD = 
+type GD =
     PDDLAtom :+:
     Not :+:
     And :+:
@@ -113,9 +113,9 @@ gdParser myLex =
     gdParsing myLex (gdParser myLex)
 
 
-type PreferenceGD = 
+type PreferenceGD =
     Preference :+:
-    GD 
+    GD
 type PreferenceGDExpr = Expr PreferenceGD
 --deriving instance Data PreferenceGDExpr
 
@@ -170,7 +170,7 @@ type ConstraintGDExpr = Expr ConstraintGD
 constraintGDParsing :: (At (Expr TimeSpecifier) :<: f,
         Always :<: f,
         Sometime :<: f,
-        Within :<: f, 
+        Within :<: f,
         AtMostOnce :<: f,
         SometimeAfter :<: f,
         SometimeBefore :<: f,
@@ -254,7 +254,7 @@ ucEffectParser mylex condP effP =
     varCollector vars =
         conditionalParser mylex condP $
         effectAssembler vars
- 
+
 
 type DAEffectD =
     At (Expr TimeSpecifier) :+:
@@ -290,8 +290,8 @@ pddlDomainParser =
           (gdParser pddlExprLexer)
         <|>
         (actionParser pddlDescLexer prefP effectP)
-       
-        
+
+
 
 
 pddlProblemParser :: CharParser PDDLProblem PDDLProblem
@@ -303,4 +303,3 @@ pddlProblemParser =
     in
     problemParser pddlDescLexer $
     problemInfoParser pddlDescLexer initP goalP constraintP
-

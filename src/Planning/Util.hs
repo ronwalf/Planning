@@ -4,10 +4,9 @@
     FlexibleInstances,
     FunctionalDependencies,
     MultiParamTypeClasses,
-    OverlappingInstances,
     ScopedTypeVariables,
     TypeOperators,
-    UndecidableInstances 
+    UndecidableInstances
   #-}
 module Planning.Util where
 
@@ -25,11 +24,11 @@ instance (LiftExpression f h, LiftExpression g h) => LiftExpression (f :+: g) h 
     liftE' (Inl x) = liftE' x
     liftE' (Inr y) = liftE' y
 
-instance (Var :<: g) => LiftExpression Var g where
+instance (Functor g, Var :<: g) => LiftExpression Var g where
     liftE' (Var v) = eVar v
-instance (Const :<: g) => LiftExpression Const g where
+instance (Functor g, Const :<: g) => LiftExpression Const g where
     liftE' (Const g) = eConst g
-instance (Function :<: g) => LiftExpression Function g where
+instance (Functor g, Function :<: g) => LiftExpression Function g where
     liftE' (Function p tl) = eFunc p tl
 
 class (Functor f) => IsPosLit f where
@@ -78,38 +77,38 @@ class (Functor f, Functor g) => NNF f g where
 nnf :: (NNF f f) => Expr f -> Expr f
 nnf (In e) = nnf' True e
 
-instance (NNF f h, NNF g h) => NNF (f :+: g) h where
+instance (Functor g, NNF f h, NNF g h) => NNF (f :+: g) h where
     nnf' b (Inr x) = nnf' b x
     nnf' b (Inl y) = nnf' b y
 
-instance ((:<:) Not g, (:<:) (Atomic t) g) => NNF (Atomic t) g where
+instance (Functor g, (:<:) Not g, (:<:) (Atomic t) g) => NNF (Atomic t) g where
     nnf' True (Atomic p tl) = eAtomic p tl
     nnf' False (Atomic p tl) = eNot $ eAtomic p tl
 
-instance (NNF g g) => NNF Not g where
+instance (Functor g, NNF g g) => NNF Not g where
     nnf' b (Not (In e)) = nnf' (not b) e
 
-instance ((:<:) And g, (:<:) Or g, NNF g g) => NNF And g where
+instance (Functor g, (:<:) And g, (:<:) Or g, NNF g g) => NNF And g where
     nnf' True (And el) = eAnd [nnf' True e | In e <-  el]
     nnf' False (And el) = eOr [nnf' False e | In e <- el]
 
-instance ((:<:) And g, (:<:) Or g, NNF g g) => NNF Or g where
+instance (Functor g, (:<:) And g, (:<:) Or g, NNF g g) => NNF Or g where
     nnf' True (Or el) = eOr [nnf' True e | In e <-  el]
     nnf' False (Or el) = eAnd [nnf' False e | In e <-  el]
 
-instance ((:<:) (Exists t) g, (:<:) (ForAll t) g, NNF g g) => NNF (Exists t) g where
+instance (Functor g, (:<:) (Exists t) g, (:<:) (ForAll t) g, NNF g g) => NNF (Exists t) g where
     nnf' True (Exists vl (In e)) = eExists vl $ nnf' True e
     nnf' False (Exists vl (In e)) = eForAll vl $ nnf' False e
 
-instance ((:<:) (ForAll t) g, (:<:) (Exists t) g, NNF g g) => NNF (ForAll t) g where
+instance (Functor g, (:<:) (ForAll t) g, (:<:) (Exists t) g, NNF g g) => NNF (ForAll t) g where
     nnf' True (ForAll vl (In e)) = eForAll vl $ nnf' True e
     nnf' False (ForAll vl (In e)) = eExists vl $ nnf' False e
 
-instance ((:<:) And g, (:<:) Imply g, NNF g g) => NNF Imply g where
+instance (Functor g, (:<:) And g, (:<:) Imply g, NNF g g) => NNF Imply g where
     nnf' True (Imply (In e1) (In e2)) = eImply (nnf' True e1) (nnf' True e2)
     nnf' False (Imply (In e1) (In e2)) = eAnd [nnf' True e1, nnf' False e2]
 
-instance ((:<:) Preference g, NNF g g) => NNF Preference g where
+instance (Functor g, (:<:) Preference g, NNF g g) => NNF Preference g where
     nnf' b (Preference n (In e)) = ePreference n $ nnf' b e
 
 
@@ -125,25 +124,25 @@ instance (Conjuncts f h, Conjuncts g h) => Conjuncts (f :+: g) h where
     conjuncts' (Inl x) = conjuncts' x
     conjuncts' (Inr y) = conjuncts' y
 
-instance (:<:) (Atomic t) g => Conjuncts (Atomic t) g where
+instance (Functor g, (:<:) (Atomic t) g) => Conjuncts (Atomic t) g where
     conjuncts' (Atomic p tl) = [eAtomic p tl]
-instance ((:<:) And g, Conjuncts g g) => Conjuncts And g where 
+instance (Functor g, (:<:) And g, Conjuncts g g) => Conjuncts And g where
     conjuncts' (And el) = concatMap conjuncts el
-instance (:<:) Or g => Conjuncts Or g where
+instance (Functor g, (:<:) Or g) => Conjuncts Or g where
     conjuncts' (Or el) = [eOr el]
-instance (:<:) Not g => Conjuncts Not g where
+instance (Functor g, (:<:) Not g) => Conjuncts Not g where
     conjuncts' (Not e) = [eNot e]
-instance (:<:) (ForAll t) g => Conjuncts (ForAll t) g where
+instance (Functor g, (:<:) (ForAll t) g) => Conjuncts (ForAll t) g where
     conjuncts' (ForAll vl e) = [eForAll vl e]
-instance (:<:) (Exists t) g => Conjuncts (Exists t) g where
+instance (Functor g, (:<:) (Exists t) g) => Conjuncts (Exists t) g where
     conjuncts' (Exists vl e) = [eExists vl e]
-instance (:<:) Imply g => Conjuncts Imply g where
+instance (Functor g, (:<:) Imply g) => Conjuncts Imply g where
     conjuncts' (Imply e1 e2) = [eImply e1 e2]
-instance (:<:) Preference g => Conjuncts Preference g where
+instance (Functor g, (:<:) Preference g) => Conjuncts Preference g where
     conjuncts' (Preference n e) = [ePreference n e]
-instance (:<:) (When p) g => Conjuncts (When p) g where
+instance (Functor g, (:<:) (When p) g) => Conjuncts (When p) g where
     conjuncts' (When p e) = [eWhen p e]
-instance (:<:) OneOf g => Conjuncts OneOf g where
+instance (Functor g, (:<:) OneOf g) => Conjuncts OneOf g where
     conjuncts' (OneOf el) = [eOneOf el]
 
 class (Functor f) => FreeVarsFindable f where
@@ -207,7 +206,7 @@ instance AtomsFindable Not g where
 instance AtomsFindable (ForAll t) g where
     findAtoms' (ForAll _ e) = e
 instance AtomsFindable (Exists t) g where
-    findAtoms' (Exists _ e) = e 
+    findAtoms' (Exists _ e) = e
 instance AtomsFindable Imply g where
     findAtoms' (Imply e1 e2) = e1 ++ e2
 instance AtomsFindable Preference g where
@@ -237,7 +236,7 @@ instance LiteralsFindable Not g where
 instance LiteralsFindable (ForAll t) g where
     findLiterals' (ForAll _ e) = e
 instance LiteralsFindable (Exists t) g where
-    findLiterals' (Exists _ e) = e 
+    findLiterals' (Exists _ e) = e
 instance LiteralsFindable Imply g where
     findLiterals' (Imply e1 e2) = e1 ++ e2
 instance LiteralsFindable Preference g where
@@ -308,7 +307,7 @@ instance (Atomic (Expr t) :<: f, VarSubstitution (Expr t) t t) => VarSubstitutio
 
 instance (And :<: f, VarSubstitution t f f) => VarSubstitution t And f where
     substituteVar' v t (And el) = eAnd $ map (substituteVar v t) el
-        
+
 instance (Or :<: f, VarSubstitution t f f) => VarSubstitution t Or f where
     substituteVar' v t (Or el) = eOr $ map (substituteVar v t) el
 
@@ -316,7 +315,7 @@ instance (Not :<: f, VarSubstitution t f f) => VarSubstitution t Not f where
     substituteVar' v t (Not e) = eNot $ substituteVar v t e
 
 instance (ForAll TypedVarExpr :<: f, VarSubstitution t f f) => VarSubstitution t (ForAll TypedVarExpr) f where
-    substituteVar' v t (ForAll vl e) = if v `elem` map removeType vl 
+    substituteVar' v t (ForAll vl e) = if v `elem` map removeType vl
         then eForAll vl e
             else eForAll vl $ substituteVar v t e
 
@@ -411,9 +410,9 @@ instance (At (Expr cg) :<: g, CFConversion cg c) => CFConversion g (At (Expr c))
 
 {- Unfinished
 -- Return a var substitution list for unifying expr1 to expr 2
--- Returns 
+-- Returns
 unify :: forall m t f .
-    (Monad m 
+    (Monad m
     , VarSubstitution (Expr t) f f, Var :<: t
     , FreeVarsFindable f
     ) => Expr f -> Expr f -> m [(Expr Var, Expr t)]

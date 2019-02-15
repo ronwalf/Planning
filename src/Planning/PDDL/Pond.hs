@@ -1,5 +1,5 @@
 {-# OPTIONS_GHC
-    -fcontext-stack=30
+    -freduction-depth=30
   #-}
 {-# LANGUAGE
     FlexibleContexts,
@@ -18,7 +18,7 @@ import qualified Text.ParserCombinators.Parsec.Token as T
 
 import Planning.PDDL.Representation
 import Planning.PDDL.Parser
-import Planning.PDDL.PDDL3_0 
+import Planning.PDDL.PDDL3_0
     (ConstTermExpr, constTermParser,
     ConstraintGDExpr, constraintGDParser,
     InitLiteral,
@@ -35,7 +35,7 @@ poInitLiteralParser :: (OneOf :<: f,
         Not :<: f,
         Atomic ConstTermExpr :<: f) =>
     T.TokenParser st
-    -> CharParser st (Expr f) 
+    -> CharParser st (Expr f)
 poInitLiteralParser myLex =
     let thisP = poInitLiteralParser myLex in
     oneOfParser myLex thisP <|>

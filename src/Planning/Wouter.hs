@@ -2,10 +2,9 @@
     DeriveDataTypeable,
     FlexibleInstances,
     MultiParamTypeClasses,
-    OverlappingInstances,
     StandaloneDeriving,
     TypeOperators,
-    UndecidableInstances 
+    UndecidableInstances
   #-}
 module Planning.Wouter (
  (:+:)(..),
@@ -22,22 +21,15 @@ import Data.Data
 -- Thank you, Wouter Swierstra
 
 --------------------------------
--- Expressions 
+-- Expressions
 --------------------------------
 
 infixr 6 :+:
 data (f :+: g) e = Inl (f e) | Inr (g e) deriving (Eq)
 
-instance (Functor f, Functor g) => Functor (f :+: g) where
+instance {-# OVERLAPS #-} (Functor f, Functor g) => Functor (f :+: g) where
     fmap f (Inl e1) = Inl (fmap f e1)
     fmap f (Inr e2) = Inr (fmap f e2)
-
-{-
-instance (Typeable1 f, Typeable1 g) => Typeable1 (f :+: g) where
-    typeOf1 l = mkTyConApp (mkTyCon3 "Planning" "Wouter" ":+:") [typeOf1 x, typeOf1 y] where
-        Inl x = (Inl undefined) `asTypeOf` l
-        Inr y = (Inr undefined) `asTypeOf` l
--}
 
 deriving instance Typeable (:+:)
 
@@ -48,18 +40,18 @@ deriving instance (
     Data (f e),
     Data (g e))
         => Data ((f :+: g) e)
- 
+
 
 class (Functor sub, Functor sup) => sub :<: sup where
     inj :: sub a -> sup a
 
-instance Functor f => (:<:) f f where
+instance {-# OVERLAPS #-} Functor f => (:<:) f f where
     inj = id
 
-instance (Functor f, Functor g) => (:<:) f (f :+: g) where
+instance {-# OVERLAPS #-} (Functor f, Functor g) => (:<:) f (f :+: g) where
     inj = Inl
 
-instance (Functor f, Functor g, Functor h, (:<:) f g) => (:<:) f (h :+: g) where
+instance {-# OVERLAPS #-} (Functor f, Functor g, Functor h, (:<:) f g) => (:<:) f (h :+: g) where
     inj = Inr . inj
 
 newtype Expr f = In (f (Expr f))
@@ -105,4 +97,3 @@ instance (FuncOrd f, FuncOrd g) => FuncOrd (f :+: g) where
 
 instance (FuncOrd f) => Ord (Expr f) where
     compare (In x) (In y) = funcCompare x y
-

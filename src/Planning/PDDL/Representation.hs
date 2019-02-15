@@ -1,28 +1,27 @@
-{-# LANGUAGE 
+{-# LANGUAGE
     DeriveDataTypeable,
     FlexibleContexts,
     FlexibleInstances,
     MultiParamTypeClasses,
-    OverlappingInstances,
     RankNTypes,
     ScopedTypeVariables,
     StandaloneDeriving,
     TypeOperators,
     TypeSynonymInstances,
-    UndecidableInstances 
+    UndecidableInstances
   #-}
 module Planning.PDDL.Representation (
     module Planning.Expressions,
     module Planning.Records,
 
     Domain(..),
-    emptyDomain, 
-    
+    emptyDomain,
 
-    Action(..), defaultAction, 
+
+    Action(..), defaultAction,
 
     Problem(..),
-    emptyProblem, 
+    emptyProblem,
 
     PDDLDoc(..),
     PDDLDocExpr(..),
@@ -53,7 +52,7 @@ instance PDDLDoc String where
 instance PDDLDocExpr f => PDDLDoc (Expr f) where
     pddlDoc (In x) = pddlDocExpr x
 
-instance (PDDLDocExpr f, PDDLDocExpr g) => PDDLDocExpr (f :+: g) where
+instance {-# OVERLAPS #-} (PDDLDocExpr f, PDDLDocExpr g) => PDDLDocExpr (f :+: g) where
     {-# NOINLINE pddlDocExpr #-}
     pddlDocExpr (Inr x) = pddlDocExpr x
     pddlDocExpr (Inl y) = pddlDocExpr y
@@ -69,18 +68,18 @@ instance PDDLDocExpr Function where
         text name : map pddlDoc args
 
 instance PDDLDoc t => PDDLDoc [Expr (Typed t)] where
-    pddlDoc tl = 
+    pddlDoc tl =
         let
             groups :: [[Expr (Typed t)]]
             groups = groupBy ((==) `on` getType) tl
         in
         sep $ fst $ foldr typelistDoc ([], []) groups
         where
-        
+
         typelistDoc :: [Expr (Typed t)] -> ([Doc], [String]) -> ([Doc], [String])
         typelistDoc [] x = x
         typelistDoc tg@(h:_) (doc, ptype)
-            | getType h == ptype 
+            | getType h == ptype
                 = (sep (docSameTypes tg) : doc, ptype)
             | otherwise
                 = let dt = char '-' <+> docType (getType h) in
@@ -94,12 +93,12 @@ instance PDDLDoc t => PDDLDoc [Expr (Typed t)] where
 
 -- No PDDLDocExpr for Typed, which gives us a way to distinquish
 -- typed instances and render them differently.
-instance PDDLDocExpr t => PDDLDocExpr (Atomic (Expr t)) where
+instance {-# OVERLAPS #-} PDDLDocExpr t => PDDLDocExpr (Atomic (Expr t)) where
     pddlDocExpr (Atomic p tl) = parens $ hsep $
         (text p) : map pddlDoc tl
 
-instance PDDLDoc t => PDDLDocExpr (Atomic (Expr (Typed t))) where
-    pddlDocExpr (Atomic p tl) = parens $ 
+instance {-# OVERLAPS #-} PDDLDoc t => PDDLDocExpr (Atomic (Expr (Typed t))) where
+    pddlDocExpr (Atomic p tl) = parens $
         (text p) <+> pddlDoc tl
 
 instance PDDLDocExpr And where
@@ -116,7 +115,7 @@ instance PDDLDocExpr (ForAll TypedVarExpr) where
         text "forall",
         parens (pddlDoc vl),
         pddlDoc e ]
-    
+
 instance PDDLDocExpr Imply where
     pddlDocExpr (Imply e1 e2) = parens $ sep [
         text "implies",
@@ -132,7 +131,7 @@ instance PDDLDocExpr Or where
     pddlDocExpr (Or el) = parens $ sep $ text "or" : [pddlDocExpr e | In e <- el]
 
 
-instance PDDLDoc p => PDDLDocExpr (When p) where
+instance {-# OVERLAPS #-} PDDLDoc p => PDDLDocExpr (When p) where
     pddlDocExpr (When p e) = parens $ sep [
         text "when",
         pddlDoc p,
@@ -150,13 +149,13 @@ instance PDDLDocExpr Start where
 instance PDDLDocExpr End where
     pddlDocExpr End = text "end"
 
-instance PDDLDoc t => PDDLDocExpr (At t) where
+instance {-# OVERLAPS #-} PDDLDoc t => PDDLDocExpr (At t) where
     pddlDocExpr (At t e) = parens $ sep [
         text "at",
         pddlDoc t,
         pddlDoc e]
 
-instance PDDLDoc t => PDDLDocExpr (Over t) where
+instance {-# OVERLAPS #-} PDDLDoc t => PDDLDocExpr (Over t) where
     pddlDocExpr (Over t e) = parens $ sep [
         text "over",
         pddlDoc t,
@@ -242,7 +241,7 @@ docMaybe f (Just x) = f x
 ------------------------------
 -- Domain Description
 ------------------------------
-data Domain a b g = Domain 
+data Domain a b g = Domain
     Name
     Requirements
     (Types TypedTypeExpr)
@@ -270,8 +269,8 @@ instance (Data a, Data b, Data g, PDDLDoc a, PDDLDoc b, PDDLDoc g) =>
         parens (text "domain" <+> text (getName domain)) :
          -- Requirement strings are prefixed with ':'
         (if (null $ getRequirements domain) then empty else parens
-            (sep $ 
-             map (text . (':':)) $ 
+            (sep $
+             map (text . (':':)) $
              "requirements" : getRequirements domain)) :
         docList (parens . sep . (text ":types" :) . (:[]) . pddlDoc) (getTypes domain) :
         docList (parens . sep . (text ":constants" :) . (:[]) . pddlDoc) (getConstants domain) :
@@ -282,16 +281,16 @@ instance (Data a, Data b, Data g, PDDLDoc a, PDDLDoc b, PDDLDoc g) =>
         space :
         intersperse space (
           (flip map (getDerived domain) (\(p,b) ->
-            parens $ sep $ 
+            parens $ sep $
               [ text ":derived"
               , pddlDoc p
               , pddlDoc b ]))
           ++ (map pddlDoc $ getActions domain))
 
 emptyDomain :: forall a b g. Domain a b g
-emptyDomain = Domain 
-    (Name "empty") 
-    (Requirements []) 
+emptyDomain = Domain
+    (Name "empty")
+    (Requirements [])
     (Types [])
     (Constants [])
     (Predicates [])
@@ -303,7 +302,7 @@ emptyDomain = Domain
 ------------------------------
 -- Action Description
 ------------------------------
-data Action p e = Action Name 
+data Action p e = Action Name
     (Parameters TypedVarExpr)
     (Precondition p)
     (Effect e)
@@ -315,13 +314,13 @@ instance (Data p, Data e) => HasEffect e (Action p e)
 defaultAction :: (Data p, Data e) => Action p e
 defaultAction = Action (Name "empty") (Parameters []) (Precondition []) (Effect [])
 
---instance (Data (Expr p), Data (Expr e), PDDLDocExpr p, PDDLDocExpr e) => 
+--instance (Data (Expr p), Data (Expr e), PDDLDocExpr p, PDDLDocExpr e) =>
 --    PDDLDoc (Action (Expr p) (Expr e)) where
-instance (Data p, Data t, Data ep, Data e, PDDLDoc p, PDDLDoc [t], PDDLDoc ep, PDDLDoc e) 
+instance (Data p, Data t, Data ep, Data e, PDDLDoc p, PDDLDoc [t], PDDLDoc ep, PDDLDoc e)
     => PDDLDoc (Action (Maybe String, p) ([t], Maybe ep, [e])) where
     pddlDoc a = parens $ sep [
         text ":action" <+> (text $ getName a),
-        --text ":parameters" <+> (parens $ hsep $ map pddlDoc $ getParameters a), 
+        --text ":parameters" <+> (parens $ hsep $ map pddlDoc $ getParameters a),
         text ":parameters" <+> (parens $ pddlDoc $ getParameters a),
         docList ((text ":precondition" <+>) . andDoc prefDoc) $ getPrecondition a,
         docList ((text ":effect" <+>) . andDoc id . concatMap effectDoc) $ getEffect a]
@@ -350,7 +349,7 @@ instance (Data p, Data t, Data ep, Data e, PDDLDoc p, PDDLDoc [t], PDDLDoc ep, P
                 pddlDoc ep,
                 andDoc pddlDoc el ]]
 
-                
+
 
 -------------------------------
 -- Problem Description
@@ -373,7 +372,7 @@ instance (Data a, Data b, Data c) => HasInitial a (Problem a b c)
 instance (Data a, Data b, Data c) => HasGoal b (Problem a b c)
 instance (Data a, Data b, Data c) => HasConstraints c (Problem a b c)
 
---instance 
+--instance
 --    (Data (Expr a), Data (Expr b), Data (Expr c),
 --     PDDLDocExpr a, PDDLDocExpr b, PDDLDocExpr c) =>
 --    Show (Problem (Expr a) (Expr b) (Expr c)) where
@@ -384,17 +383,17 @@ instance (Data a, Data b, Data c,
         text "define" :
         (parens $ text "problem" <+> (text $ getName prob)) :
         (parens $ text ":domain" <+> (text $ getDomainName prob)) :
-        (if null $ getRequirements prob then empty else 
+        (if null $ getRequirements prob then empty else
            (parens $ sep $ text ":requirements" : map (text . (':':)) (getRequirements prob))) :
         --docNonEmpty ":objects" (getConstants prob) :
         docList (parens . (text ":objects" <+>) . pddlDoc) (getConstants prob) :
-        docList (parens . sep . (text ":init" : ) . map pddlDoc) (getInitial prob) : 
+        docList (parens . sep . (text ":init" : ) . map pddlDoc) (getInitial prob) :
         docMaybe (parens . (text ":goal" <+>) . pddlDoc) (getGoal prob) :
         docMaybe (parens . (text ":constraints" <+>) . pddlDoc) (getConstraints prob) :
         []
 
-       
-    
+
+
 emptyProblem :: forall a b c. Problem a b c
 emptyProblem = Problem
     (Name "empty")

@@ -1,13 +1,12 @@
 {-# OPTIONS_GHC
-  -fcontext-stack=40
+  -freduction-depth=40
   #-}
-{-# LANGUAGE OverlappingInstances #-}
 module Main where
 
 import Control.Monad (when)
 import System.Environment
 import System.IO
-import Text.ParserCombinators.Parsec 
+import Text.ParserCombinators.Parsec
 --import Text.ParserCombinators.Parsec.Char (noneOf)
 --(runParser, parse, (<|>), ParseError, CharParser)
 import qualified Text.ParserCombinators.Parsec.Token as T
@@ -29,8 +28,8 @@ reparseCheck aparser fname ftxt = do
     when (parsed /= reparsed) $
         fail $ "Parsed file not equal to reparsed file:\n" ++ (show $ pddlDoc parsed) ++ "\n" ++ (show $ pddlDoc reparsed)
     return $ pddlDoc parsed
-    
-    
+
+
 
 eitherParser:: String -> String -> (Either ParseError Doc)
 eitherParser fname ftxt =
@@ -38,7 +37,7 @@ eitherParser fname ftxt =
       runM :: Either ParseError (Either ParseError Doc)
       runM = parse (defineP (isDomP <|> isProbP)) fname ftxt
     in
-    case runM of 
+    case runM of
         Left err -> Left err
         Right (Left err) -> Left err
         Right (Right doc) -> Right doc
@@ -48,22 +47,22 @@ eitherParser fname ftxt =
             T.whiteSpace pddlDescLexer
             _ <- T.symbol pddlDescLexer "("
             T.reserved pddlDescLexer "define"
-            doc <- T.parens pddlDescLexer p 
+            doc <- T.parens pddlDescLexer p
             return doc
         isDomP :: CharParser () (Either ParseError Doc)
         isDomP = do
             try $ T.reserved pddlDescLexer "domain"
-            _ <- T.identifier pddlDescLexer 
+            _ <- T.identifier pddlDescLexer
             return domainP
         isProbP = do
             try $ T.reserved pddlDescLexer "problem"
-            _ <- T.identifier pddlDescLexer 
+            _ <- T.identifier pddlDescLexer
             return problemP
         domainP :: Either ParseError Doc
         domainP = reparseCheck (runParser pddlDomainParser emptyDomain) fname ftxt
         problemP:: Either ParseError Doc
         problemP = reparseCheck (runParser pddlProblemParser emptyProblem) fname ftxt
-            
+
 
 main :: IO ()
 main = do
@@ -76,5 +75,5 @@ main = do
     where
         printResults (Left err) = do
             fail $ show err
-        printResults (Right doc) = 
+        printResults (Right doc) =
             print doc

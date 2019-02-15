@@ -1,4 +1,4 @@
-{-# LANGUAGE 
+{-# LANGUAGE
     DeriveDataTypeable,
     FlexibleContexts,
     FlexibleInstances,
@@ -52,7 +52,7 @@ module Planning.Expressions (
     End(..), eEnd,
     All(..), eAll,
     At(..), AtExpression(..),
-    Over(..), OverExpression,
+    Over(..), OverExpression(..),
     Always(..), eAlways,
     Sometime(..), eSometime,
     Within(..), eWithin,
@@ -62,7 +62,7 @@ module Planning.Expressions (
     AlwaysWithin(..), eAlwaysWithin,
     HoldDuring(..), eHoldDuring,
     HoldAfter(..), eHoldAfter,
-   
+
     -- Partial Observability
     OneOf(..), eOneOf,
     Unknown(..), eUnknown
@@ -102,7 +102,7 @@ instance Functor Function where
 instance FuncEq Function where
     funcEq (Function n1 tl1) (Function n2 tl2) = (n1 == n2) && (tl1 == tl2)
 instance FuncOrd Function where
-    funcCompare (Function n1 tl1) (Function n2 tl2) = 
+    funcCompare (Function n1 tl1) (Function n2 tl2) =
         compare (n1, tl1) (n2, tl2)
 eFunc :: (Function :<: f) => String -> [Expr f] -> Expr f
 eFunc n tl = inject (Function n tl)
@@ -163,7 +163,7 @@ instance Functor (Atomic a) where
 instance (Eq t) => FuncEq (Atomic t) where
     funcEq (Atomic p1 tl1) (Atomic p2 tl2) = (p1 == p2) && (tl1 == tl2)
 instance (Ord t) => FuncOrd (Atomic t) where
-    funcCompare (Atomic p1 tl1) (Atomic p2 tl2) = 
+    funcCompare (Atomic p1 tl1) (Atomic p2 tl2) =
         compare (p1, tl1) (p2, tl2)
 
 class AtomicExpression t f where
@@ -182,7 +182,7 @@ eNot :: (Not :<: f) => Expr f -> Expr f
 eNot e = inject (Not e)
 
 ---------------------------------------
--- First Order Logic Connectives 
+-- First Order Logic Connectives
 ---------------------------------------
 data And e = And [e] deriving (Data, Eq, Typeable)
 instance Functor And where
@@ -252,7 +252,7 @@ instance Functor (When p) where
 instance Eq p => FuncEq (When p) where
     funcEq (When p1 e1) (When p2 e2) = (p1 == p2) && (e1 == e2)
 instance Ord p => FuncOrd (When p) where
-    funcCompare (When p1 e1) (When p2 e2) = 
+    funcCompare (When p1 e1) (When p2 e2) =
         compare (p1, e1) (p2, e2)
 class WhenExpression p f where
     eWhen :: p -> Expr f -> Expr f
@@ -317,7 +317,7 @@ instance Functor (At t) where
 instance Eq t => FuncEq (At t) where
     funcEq (At t1 e1) (At t2 e2) = (t1 == t2) && (e1 == e2)
 instance Ord t => FuncOrd (At t) where
-    funcCompare (At t1 e1) (At t2 e2) = 
+    funcCompare (At t1 e1) (At t2 e2) =
         compare (t1, e1) (t2, e2)
 class AtExpression t f where
     eAt :: t -> Expr f -> Expr f
@@ -330,7 +330,7 @@ instance Functor (Over t) where
 instance Eq t => FuncEq (Over t) where
     funcEq (Over t1 e1) (Over t2 e2) = (t1 == t2) && (e1 == e2)
 instance Ord t => FuncOrd (Over t) where
-    funcCompare (Over t1 e1) (Over t2 e2) = 
+    funcCompare (Over t1 e1) (Over t2 e2) =
         compare (t1, e1) (t2, e2)
 class OverExpression t f where
     eOver :: t -> Expr f -> Expr f
@@ -363,7 +363,7 @@ instance Functor Within where
 instance FuncEq Within where
     funcEq (Within n1 e1) (Within n2 e2) = (n1 == n2) && (e1 == e2)
 instance FuncOrd Within where
-    funcCompare (Within n1 e1) (Within n2 e2) = 
+    funcCompare (Within n1 e1) (Within n2 e2) =
         compare (n1, e1) (n2, e2)
 eWithin :: (Within :<: f) => Double -> Expr f -> Expr f
 eWithin d e = inject (Within d e)
@@ -385,7 +385,7 @@ instance Functor SometimeAfter where
 instance FuncEq SometimeAfter where
     funcEq (SometimeAfter e11 e12 ) (SometimeAfter e21 e22) = (e11 == e21) && (e12 == e22)
 instance FuncOrd SometimeAfter where
-    funcCompare (SometimeAfter e11 e12 ) (SometimeAfter e21 e22) = 
+    funcCompare (SometimeAfter e11 e12 ) (SometimeAfter e21 e22) =
         compare (e11, e12) (e21, e22)
 eSometimeAfter :: (SometimeAfter :<: f) => Expr f -> Expr f -> Expr f
 eSometimeAfter e1 e2 = inject (SometimeAfter e1 e2)
@@ -396,7 +396,7 @@ instance Functor SometimeBefore where
 instance FuncEq SometimeBefore where
     funcEq (SometimeBefore e11 e12 ) (SometimeBefore e21 e22) = (e11 == e21) && (e12 == e22)
 instance FuncOrd SometimeBefore where
-    funcCompare (SometimeBefore e11 e12 ) (SometimeBefore e21 e22) = 
+    funcCompare (SometimeBefore e11 e12 ) (SometimeBefore e21 e22) =
         compare (e11, e12) (e21, e22)
 eSometimeBefore :: (SometimeBefore :<: f) => Expr f -> Expr f -> Expr f
 eSometimeBefore e1 e2 = inject (SometimeBefore e1 e2)
@@ -405,10 +405,10 @@ data AlwaysWithin e = AlwaysWithin Double e e deriving (Data, Eq, Typeable)
 instance Functor AlwaysWithin where
     fmap f (AlwaysWithin d e1 e2) = AlwaysWithin d (f e1) (f e2)
 instance FuncEq AlwaysWithin where
-    funcEq (AlwaysWithin d1 e11 e12 ) (AlwaysWithin d2 e21 e22) = 
+    funcEq (AlwaysWithin d1 e11 e12 ) (AlwaysWithin d2 e21 e22) =
         (d1 == d2) && (e11 == e21) && (e12 == e22)
 instance FuncOrd AlwaysWithin where
-    funcCompare (AlwaysWithin d1 e11 e12 ) (AlwaysWithin d2 e21 e22) = 
+    funcCompare (AlwaysWithin d1 e11 e12 ) (AlwaysWithin d2 e21 e22) =
         compare (d1, e11, e12) (d2, e21, e22)
 eAlwaysWithin :: (AlwaysWithin :<: f) => Double -> Expr f -> Expr f -> Expr f
 eAlwaysWithin d e1 e2 = inject (AlwaysWithin d e1 e2)
@@ -417,10 +417,10 @@ data HoldDuring e = HoldDuring Double Double e deriving (Data, Eq, Typeable)
 instance Functor HoldDuring where
     fmap f (HoldDuring b e p) = HoldDuring b e $ f p
 instance FuncEq HoldDuring where
-    funcEq (HoldDuring b1 e1 p1) (HoldDuring b2 e2 p2) = 
+    funcEq (HoldDuring b1 e1 p1) (HoldDuring b2 e2 p2) =
         (b1 == b2) && (e1 == e2) && (p1 == p2)
 instance FuncOrd HoldDuring where
-    funcCompare (HoldDuring b1 e1 p1) (HoldDuring b2 e2 p2) = 
+    funcCompare (HoldDuring b1 e1 p1) (HoldDuring b2 e2 p2) =
         compare (b1, e1, p1) (b2, e2, p2)
 eHoldDuring :: (HoldDuring :<: f) => Double -> Double -> Expr f -> Expr f
 eHoldDuring b e p = inject (HoldDuring b e p)
@@ -432,7 +432,7 @@ instance Functor HoldAfter where
 instance FuncEq HoldAfter where
     funcEq (HoldAfter n1 e1) (HoldAfter n2 e2) = (n1 == n2) && (e1 == e2)
 instance FuncOrd HoldAfter where
-    funcCompare (HoldAfter n1 e1) (HoldAfter n2 e2) = 
+    funcCompare (HoldAfter n1 e1) (HoldAfter n2 e2) =
         compare (n1, e1) (n2, e2)
 eHoldAfter :: (HoldAfter :<: f) => Double -> Expr f -> Expr f
 eHoldAfter d e = inject (HoldAfter d e)
@@ -462,4 +462,3 @@ instance FuncOrd Unknown where
         compare e1 e2
 eUnknown :: (Unknown :<: f) => Expr f -> Expr f
 eUnknown e = inject (Unknown e)
-
