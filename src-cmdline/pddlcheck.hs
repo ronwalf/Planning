@@ -4,13 +4,13 @@
 module Main where
 
 import Control.Monad (when)
+import Data.Text.Prettyprint.Doc
 import System.Environment
 import System.IO
 import Text.ParserCombinators.Parsec
 --import Text.ParserCombinators.Parsec.Char (noneOf)
 --(runParser, parse, (<|>), ParseError, CharParser)
 import qualified Text.ParserCombinators.Parsec.Token as T
-import Text.PrettyPrint
 
 import Planning.PDDL.PDDL3_0
 
@@ -22,7 +22,7 @@ reparse aparser fname ftxt = do
     return (parsed, reparsed)
 
 reparseCheck :: (PDDLDoc a, Eq a, Monad m) =>
-    (String -> String -> m a) -> String -> String -> m Doc
+    (String -> String -> m a) -> String -> String -> m (Doc ann)
 reparseCheck aparser fname ftxt = do
     (parsed, reparsed) <- reparse aparser fname ftxt
     when (parsed /= reparsed) $
@@ -31,10 +31,10 @@ reparseCheck aparser fname ftxt = do
 
 
 
-eitherParser:: String -> String -> (Either ParseError Doc)
+eitherParser:: String -> String -> (Either ParseError (Doc ann))
 eitherParser fname ftxt =
     let
-      runM :: Either ParseError (Either ParseError Doc)
+      runM :: Either ParseError (Either ParseError (Doc ann))
       runM = parse (defineP (isDomP <|> isProbP)) fname ftxt
     in
     case runM of
@@ -49,7 +49,7 @@ eitherParser fname ftxt =
             T.reserved pddlDescLexer "define"
             doc <- T.parens pddlDescLexer p
             return doc
-        isDomP :: CharParser () (Either ParseError Doc)
+        isDomP :: CharParser () (Either ParseError (Doc ann))
         isDomP = do
             try $ T.reserved pddlDescLexer "domain"
             _ <- T.identifier pddlDescLexer
@@ -58,9 +58,9 @@ eitherParser fname ftxt =
             try $ T.reserved pddlDescLexer "problem"
             _ <- T.identifier pddlDescLexer
             return problemP
-        domainP :: Either ParseError Doc
+        domainP :: Either ParseError (Doc ann)
         domainP = reparseCheck (runParser pddlDomainParser emptyDomain) fname ftxt
-        problemP:: Either ParseError Doc
+        problemP:: Either ParseError (Doc ann)
         problemP = reparseCheck (runParser pddlProblemParser emptyProblem) fname ftxt
 
 

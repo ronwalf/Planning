@@ -4,6 +4,7 @@
     FlexibleInstances,
     MultiParamTypeClasses,
     RankNTypes,
+    OverloadedStrings,
     ScopedTypeVariables,
     StandaloneDeriving,
     TypeOperators,
@@ -31,23 +32,29 @@ module Planning.PDDL.Representation (
 import Data.Data
 import Data.Function (on)
 import Data.List
-import Text.PrettyPrint
+import Data.Text (Text)
+import qualified Data.Text as T
+import Data.Text.Prettyprint.Doc
 
 import Planning.Expressions
 import Planning.Records
 
 
+-- Utilities
+prettyT :: Text -> Doc ann
+prettyT = pretty
+
 -----------------------------
 -- Rendering
 -----------------------------
 class Functor f => PDDLDocExpr f where
-    pddlDocExpr :: (PDDLDocExpr g) => f (Expr g) -> Doc
+    pddlDocExpr :: (PDDLDocExpr g) => f (Expr g) -> Doc ann
 
 class PDDLDoc d where
-    pddlDoc :: d -> Doc
+    pddlDoc :: d -> Doc ann
 
-instance PDDLDoc String where
-    pddlDoc = text
+instance PDDLDoc Text where
+    pddlDoc = pretty
 
 instance PDDLDocExpr f => PDDLDoc (Expr f) where
     pddlDoc (In x) = pddlDocExpr x
@@ -58,14 +65,14 @@ instance {-# OVERLAPS #-} (PDDLDocExpr f, PDDLDocExpr g) => PDDLDocExpr (f :+: g
     pddlDocExpr (Inl y) = pddlDocExpr y
 
 instance PDDLDocExpr Var where
-    pddlDocExpr (Var name) = text ('?':name)
+    pddlDocExpr (Var name) = pretty ('?' `T.cons` name)
 
 instance PDDLDocExpr Const where
-    pddlDocExpr (Const name) = text name
+    pddlDocExpr (Const name) = pretty name
 
 instance PDDLDocExpr Function where
     pddlDocExpr (Function name args) = parens $ sep $
-        text name : map pddlDoc args
+        pretty name : map pddlDoc args
 
 instance PDDLDoc t => PDDLDoc [Expr (Typed t)] where
     pddlDoc tl =
@@ -76,165 +83,165 @@ instance PDDLDoc t => PDDLDoc [Expr (Typed t)] where
         sep $ fst $ foldr typelistDoc ([], []) groups
         where
 
-        typelistDoc :: [Expr (Typed t)] -> ([Doc], [String]) -> ([Doc], [String])
+        typelistDoc :: [Expr (Typed t)] -> ([Doc ann], [Text]) -> ([Doc ann], [Text])
         typelistDoc [] x = x
         typelistDoc tg@(h:_) (doc, ptype)
             | getType h == ptype
                 = (sep (docSameTypes tg) : doc, ptype)
             | otherwise
-                = let dt = char '-' <+> docType (getType h) in
+                = let dt = prettyT "-" <+> docType (getType h) in
                     (sep (docSameTypes tg ++ [dt]) : doc, getType h)
-        docSameTypes :: [Expr (Typed t)] -> [Doc]
+        docSameTypes :: [Expr (Typed t)] -> [Doc ann]
         docSameTypes = map (pddlDoc . removeType)
-        docType :: [String] -> Doc
-        docType [] = text "object"
-        docType [t] = text t
-        docType l = parens $ sep $ text "either" : map text l
+        docType :: [Text] -> Doc ann
+        docType [] = prettyT "object"
+        docType [t] = pretty t
+        docType l = parens $ sep $ prettyT "either" : map pretty l
 
 -- No PDDLDocExpr for Typed, which gives us a way to distinquish
 -- typed instances and render them differently.
 instance {-# OVERLAPS #-} PDDLDocExpr t => PDDLDocExpr (Atomic (Expr t)) where
     pddlDocExpr (Atomic p tl) = parens $ hsep $
-        (text p) : map pddlDoc tl
+        (pretty p) : map pddlDoc tl
 
 instance {-# OVERLAPS #-} PDDLDoc t => PDDLDocExpr (Atomic (Expr (Typed t))) where
     pddlDocExpr (Atomic p tl) = parens $
-        (text p) <+> pddlDoc tl
+        (pretty p) <+> pddlDoc tl
 
 instance PDDLDocExpr And where
-    pddlDocExpr (And el) = parens $ sep $ text "and" : [pddlDocExpr e | In e <- el]
+    pddlDocExpr (And el) = parens $ sep $ prettyT "and" : [pddlDocExpr e | In e <- el]
 
 instance PDDLDocExpr (Exists TypedVarExpr) where
     pddlDocExpr (Exists vl e) = parens $ sep [
-        text "exists",
+        prettyT "exists",
         parens (pddlDoc vl),
         pddlDoc e ]
 
 instance PDDLDocExpr (ForAll TypedVarExpr) where
     pddlDocExpr (ForAll vl e) = parens $ sep [
-        text "forall",
+        prettyT "forall",
         parens (pddlDoc vl),
         pddlDoc e ]
 
 instance PDDLDocExpr Imply where
     pddlDocExpr (Imply e1 e2) = parens $ sep [
-        text "implies",
+        prettyT "implies",
         pddlDoc e1,
         pddlDoc e2]
 
 instance PDDLDocExpr Not where
     pddlDocExpr (Not e) = parens $ sep [
-        text "not",
+        prettyT "not",
         pddlDoc e]
 
 instance PDDLDocExpr Or where
-    pddlDocExpr (Or el) = parens $ sep $ text "or" : [pddlDocExpr e | In e <- el]
+    pddlDocExpr (Or el) = parens $ sep $ prettyT "or" : [pddlDocExpr e | In e <- el]
 
 
 instance {-# OVERLAPS #-} PDDLDoc p => PDDLDocExpr (When p) where
     pddlDocExpr (When p e) = parens $ sep [
-        text "when",
+        prettyT "when",
         pddlDoc p,
         pddlDoc e]
 
 instance PDDLDocExpr Preference where
     pddlDocExpr (Preference n p) = parens $ sep [
-        text "preference",
-        maybe empty text n,
+        prettyT "preference",
+        maybe emptyDoc pretty n,
         pddlDoc p]
 
 instance PDDLDocExpr Start where
-    pddlDocExpr Start = text "start"
+    pddlDocExpr Start = prettyT "start"
 
 instance PDDLDocExpr End where
-    pddlDocExpr End = text "end"
+    pddlDocExpr End = prettyT "end"
 
 instance {-# OVERLAPS #-} PDDLDoc t => PDDLDocExpr (At t) where
     pddlDocExpr (At t e) = parens $ sep [
-        text "at",
+        prettyT "at",
         pddlDoc t,
         pddlDoc e]
 
 instance {-# OVERLAPS #-} PDDLDoc t => PDDLDocExpr (Over t) where
     pddlDocExpr (Over t e) = parens $ sep [
-        text "over",
+        prettyT "over",
         pddlDoc t,
         pddlDoc e]
 
 instance PDDLDocExpr Always where
     pddlDocExpr (Always e) = parens $ sep [
-        text "always",
+        prettyT "always",
         pddlDoc e]
 
 instance PDDLDocExpr Sometime where
     pddlDocExpr (Sometime e) = parens $ sep [
-        text "sometime",
+        prettyT "sometime",
         pddlDoc e]
 
 instance PDDLDocExpr SometimeAfter where
     pddlDocExpr (SometimeAfter e1 e2) = parens $ sep [
-        text "sometime-after",
+        prettyT "sometime-after",
         pddlDoc e1,
         pddlDoc e2]
 
 instance PDDLDocExpr SometimeBefore where
     pddlDocExpr (SometimeBefore e1 e2) = parens $ sep [
-        text "sometime-before",
+        prettyT "sometime-before",
         pddlDoc e1,
         pddlDoc e2]
 
 instance PDDLDocExpr Within where
     pddlDocExpr (Within n e) = parens $ sep [
-        text "within",
-        double n,
+        prettyT "within",
+        pretty n,
         pddlDoc e]
 
 instance PDDLDocExpr AtMostOnce where
     pddlDocExpr (AtMostOnce e) = parens $ sep [
-        text "at-most-once",
+        prettyT "at-most-once",
         pddlDoc e]
 
 instance PDDLDocExpr AlwaysWithin where
     pddlDocExpr (AlwaysWithin n e1 e2) = parens $ sep [
-        text "always-within",
-        double n,
+        prettyT "always-within",
+        pretty n,
         pddlDoc e1,
         pddlDoc e2]
 
 instance PDDLDocExpr HoldDuring where
     pddlDocExpr (HoldDuring n1 n2 e) = parens $ sep [
-        text "hold-during",
-        double n1,
-        double n2,
+        prettyT "hold-during",
+        pretty n1,
+        pretty n2,
         pddlDoc e]
 
 instance PDDLDocExpr HoldAfter where
     pddlDocExpr (HoldAfter n e) = parens $ sep [
-        text "hold-after",
-        double n,
+        prettyT "hold-after",
+        pretty n,
         pddlDoc e]
 
 instance PDDLDocExpr OneOf where
     pddlDocExpr (OneOf el) = parens $ sep $
-        text "oneof":
+        prettyT "oneof":
         map pddlDoc el
 
 instance PDDLDocExpr Unknown where
     pddlDocExpr (Unknown e) = parens $ sep [
-        text "unknown",
+        prettyT "unknown",
         pddlDoc e]
 
 
-docNonEmpty :: PDDLDoc f => String -> [f] -> Doc
+docNonEmpty :: PDDLDoc f => Text -> [f] -> Doc ann
 docNonEmpty name ol =
-    if (null ol) then empty else parens $ sep $
-        text name : map pddlDoc ol
+    if (null ol) then emptyDoc else parens $ sep $
+        pretty name : map pddlDoc ol
 
-docList :: ([x] -> Doc) -> [x] -> Doc
-docList _ [] = empty
+docList :: ([x] -> Doc ann) -> [x] -> Doc ann
+docList _ [] = emptyDoc
 docList f l = f l
-docMaybe :: (x -> Doc) -> Maybe x -> Doc
-docMaybe _ Nothing = empty
+docMaybe :: (x -> Doc ann) -> Maybe x -> Doc ann
+docMaybe _ Nothing = emptyDoc
 docMaybe f (Just x) = f x
 
 
@@ -265,24 +272,25 @@ instance (Data a, Data b, Data g) => HasActions b (Domain a b g)
 
 instance (Data a, Data b, Data g, PDDLDoc a, PDDLDoc b, PDDLDoc g) =>
     PDDLDoc (Domain a b g) where
-    pddlDoc domain = parens $ ($$) (text "define") $ vcat $
-        parens (text "domain" <+> text (getName domain)) :
+    pddlDoc domain = parens $ align $ vcat $
+        prettyT "define" :
+        parens (prettyT "domain" <+> pretty (getName domain)) :
          -- Requirement strings are prefixed with ':'
-        (if (null $ getRequirements domain) then empty else parens
+        (if (null $ getRequirements domain) then emptyDoc else parens
             (sep $
-             map (text . (':':)) $
+             map (pretty . (T.cons ':')) $
              "requirements" : getRequirements domain)) :
-        docList (parens . sep . (text ":types" :) . (:[]) . pddlDoc) (getTypes domain) :
-        docList (parens . sep . (text ":constants" :) . (:[]) . pddlDoc) (getConstants domain) :
-        docList (parens . sep . (text ":predicates" :) . map pddlDoc) (getPredicates domain) :
-        docList (parens . sep . (text ":functions" :) . (:[]) . pddlDoc) (getFunctions domain) :
-        maybe empty (\constr -> parens $ sep [text ":constraints", pddlDoc constr])
+        docList (parens . sep . (prettyT ":types" :) . (:[]) . pddlDoc) (getTypes domain) :
+        docList (parens . sep . (prettyT ":constants" :) . (:[]) . pddlDoc) (getConstants domain) :
+        docList (parens . sep . (prettyT ":predicates" :) . map pddlDoc) (getPredicates domain) :
+        docList (parens . sep . (prettyT ":functions" :) . (:[]) . pddlDoc) (getFunctions domain) :
+        maybe emptyDoc (\constr -> parens $ sep [prettyT ":constraints", pddlDoc constr])
             (getConstraints domain) :
         space :
         intersperse space (
           (flip map (getDerived domain) (\(p,b) ->
             parens $ sep $
-              [ text ":derived"
+              [ prettyT ":derived"
               , pddlDoc p
               , pddlDoc b ]))
           ++ (map pddlDoc $ getActions domain))
@@ -317,35 +325,34 @@ defaultAction = Action (Name "empty") (Parameters []) (Precondition []) (Effect 
 --instance (Data (Expr p), Data (Expr e), PDDLDocExpr p, PDDLDocExpr e) =>
 --    PDDLDoc (Action (Expr p) (Expr e)) where
 instance (Data p, Data t, Data ep, Data e, PDDLDoc p, PDDLDoc [t], PDDLDoc ep, PDDLDoc e)
-    => PDDLDoc (Action (Maybe String, p) ([t], Maybe ep, [e])) where
+    => PDDLDoc (Action (Maybe Text, p) ([t], Maybe ep, [e])) where
     pddlDoc a = parens $ sep [
-        text ":action" <+> (text $ getName a),
-        --text ":parameters" <+> (parens $ hsep $ map pddlDoc $ getParameters a),
-        text ":parameters" <+> (parens $ pddlDoc $ getParameters a),
-        docList ((text ":precondition" <+>) . andDoc prefDoc) $ getPrecondition a,
-        docList ((text ":effect" <+>) . andDoc id . concatMap effectDoc) $ getEffect a]
+        prettyT ":action" <+> (pretty $ getName a),
+        prettyT ":parameters" <+> (parens $ pddlDoc $ getParameters a),
+        docList ((prettyT ":precondition" <+>) . andDoc prefDoc) $ getPrecondition a,
+        docList ((prettyT ":effect" <+>) . andDoc id . concatMap effectDoc) $ getEffect a]
         where
-            andDoc :: forall a . (a -> Doc) -> [a] -> Doc
+            andDoc :: forall a ann . (a -> Doc ann) -> [a] -> Doc ann
             andDoc f [t] = f t
             andDoc f tl = parens $ sep $
-                text "and"
+                prettyT "and"
                 : map f tl
-            prefDoc :: (Maybe String, p) -> Doc
+            prefDoc :: (Maybe Text, p) -> Doc ann
             prefDoc (Nothing, p) = pddlDoc p
             prefDoc (Just n, p) = parens $ sep [
-                text "preference",
-                text n,
+                prettyT "preference",
+                pretty n,
                 pddlDoc p ]
-            effectDoc :: ([t], Maybe ep, [e]) -> [Doc]
+            effectDoc :: ([t], Maybe ep, [e]) -> [Doc ann]
             effectDoc ([], ep, el) = condDoc ep el
             effectDoc (tl, ep, el) = [parens $ sep [
-                text "forall",
+                prettyT "forall",
                 parens (pddlDoc tl),
                 andDoc id $ condDoc ep el]]
-            condDoc :: Maybe ep -> [e] -> [Doc]
+            condDoc :: Maybe ep -> [e] -> [Doc ann]
             condDoc Nothing el = map pddlDoc el
             condDoc (Just ep) el = [parens $ sep [
-                text "when",
+                prettyT "when",
                 pddlDoc ep,
                 andDoc pddlDoc el ]]
 
@@ -380,16 +387,16 @@ instance (Data a, Data b, Data c,
         PDDLDoc a, PDDLDoc b, PDDLDoc c) =>
         PDDLDoc (Problem a b c) where
     pddlDoc prob = parens $ sep $
-        text "define" :
-        (parens $ text "problem" <+> (text $ getName prob)) :
-        (parens $ text ":domain" <+> (text $ getDomainName prob)) :
-        (if null $ getRequirements prob then empty else
-           (parens $ sep $ text ":requirements" : map (text . (':':)) (getRequirements prob))) :
+        prettyT "define" :
+        (parens $ prettyT "problem" <+> (pretty $ getName prob)) :
+        (parens $ prettyT ":domain" <+> (pretty $ getDomainName prob)) :
+        (if null $ getRequirements prob then emptyDoc else
+           (parens $ sep $ prettyT ":requirements" : map (pretty . (T.cons ':')) (getRequirements prob))) :
         --docNonEmpty ":objects" (getConstants prob) :
-        docList (parens . (text ":objects" <+>) . pddlDoc) (getConstants prob) :
-        docList (parens . sep . (text ":init" : ) . map pddlDoc) (getInitial prob) :
-        docMaybe (parens . (text ":goal" <+>) . pddlDoc) (getGoal prob) :
-        docMaybe (parens . (text ":constraints" <+>) . pddlDoc) (getConstraints prob) :
+        docList (parens . (prettyT ":objects" <+>) . pddlDoc) (getConstants prob) :
+        docList (parens . sep . (prettyT ":init" : ) . map pddlDoc) (getInitial prob) :
+        docMaybe (parens . (prettyT ":goal" <+>) . pddlDoc) (getGoal prob) :
+        docMaybe (parens . (prettyT ":constraints" <+>) . pddlDoc) (getConstraints prob) :
         []
 
 

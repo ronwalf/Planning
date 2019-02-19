@@ -1,11 +1,12 @@
 {-# OPTIONS
  #-}
-{-# LANGUAGE 
+{-# LANGUAGE
     DeriveDataTypeable,
     FlexibleContexts,
     FlexibleInstances,
     FunctionalDependencies,
     MultiParamTypeClasses,
+    OverloadedStrings,
     Rank2Types
   #-}
 
@@ -14,6 +15,7 @@ module Planning.Records where
 import Data.Generics
 import Control.Monad
 import Data.Maybe
+import Data.Text (Text)
 
 -- Thank you, s.clover
 
@@ -27,31 +29,31 @@ gfind :: (Data a, Typeable b) => a -> Maybe b
 gfind = something (const Nothing `extQ` Just)
 
 
-newtype Name = Name String deriving (Eq, Show, Data, Typeable)
-unName :: Name -> String
+newtype Name = Name Text deriving (Eq, Show, Data, Typeable)
+unName :: Name -> Text
 unName (Name a) = a
 class Data a => HasName a where
-    getName :: a -> String
+    getName :: a -> Text
     getName = unName . fromJust . gfind
-    setName :: String -> a -> a
+    setName :: Text -> a -> a
     setName n r = fromJust $ greplace r (Name n)
 
-newtype DomainName = DomainName String deriving (Eq, Show, Data, Typeable)
-unDomainName :: DomainName -> String
+newtype DomainName = DomainName Text deriving (Eq, Show, Data, Typeable)
+unDomainName :: DomainName -> Text
 unDomainName (DomainName a) = a
 class Data a => HasDomainName a where
-    getDomainName :: a -> String
+    getDomainName :: a -> Text
     getDomainName = unDomainName . fromJust . gfind
-    setDomainName :: String -> a -> a
+    setDomainName :: Text -> a -> a
     setDomainName n r = fromJust $ greplace r (DomainName n)
 
-newtype Requirements = Requirements [String] deriving (Eq, Show, Data, Typeable)
-unRequirements :: Requirements -> [String]
+newtype Requirements = Requirements [Text] deriving (Eq, Show, Data, Typeable)
+unRequirements :: Requirements -> [Text]
 unRequirements (Requirements a) = a
 class Data a => HasRequirements a where
-    getRequirements :: a -> [String]
+    getRequirements :: a -> [Text]
     getRequirements = unRequirements . fromJust . gfind
-    setRequirements :: [String] -> a -> a
+    setRequirements :: [Text] -> a -> a
     setRequirements rl r = fromJust $ greplace r (Requirements rl)
 
 data Types f = Types [f] deriving (Eq, Show, Data, Typeable)
@@ -162,5 +164,3 @@ class (Data a, Typeable f) => HasEffect f a | a -> f where
     getEffect = unEffect . fromJust . gfind
     setEffect :: [f] -> a -> a
     setEffect eff r = fromJust $ greplace r (Effect eff)
-
-

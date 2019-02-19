@@ -10,8 +10,10 @@
   #-}
 module Planning.Util where
 
-import Data.List
 import Control.Monad (liftM)
+import Data.List
+import Data.Text (Text)
+import qualified Data.Text as T
 
 import Planning.Expressions
 
@@ -45,8 +47,8 @@ instance IsPosLit Not where
     isPosLit' (Not x) = not x
 
 class (Functor f) => LitName f where
-    litName' :: f String -> String
-litName :: LitName f => Expr f -> String
+    litName' :: f Text -> Text
+litName :: LitName f => Expr f -> Text
 litName = foldExpr litName'
 
 instance (LitName f, LitName g) => LitName (f :+: g) where
@@ -384,7 +386,7 @@ instance (CFConversion h f, CFConversion h g) => CFConversion h (f :+: g) where
     cfConversion' (Inr y) = cfConversion' y
 
 instance CFConversion g Var where
-    cfConversion' (Var v) = fail $ "Cannot convert: Variable " ++ v ++ " found"
+    cfConversion' (Var v) = fail $ "Cannot convert: Variable " ++ (T.unpack v) ++ " found"
 instance (Const :<: g) => CFConversion g Const where
     cfConversion' (Const c) = return $ eConst c
 instance (Function :<: g) => CFConversion g Function where

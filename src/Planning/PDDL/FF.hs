@@ -3,10 +3,12 @@
   #-}
 {-# LANGUAGE
     FlexibleContexts,
+    OverloadedStrings,
     TypeOperators
   #-}
 module Planning.PDDL.FF ( ffOutParser ) where
 
+import qualified Data.Text as T
 import Text.ParserCombinators.Parsec
 import qualified Text.ParserCombinators.Parsec.Token as T
 
@@ -19,7 +21,7 @@ skipTill end =
     <|>
     (anyChar >> skipTill end)
 
-ffOutParser :: (Atomic (Expr Const) :<: f) 
+ffOutParser :: (Atomic (Expr Const) :<: f)
     => CharParser () (Maybe [Expr f])
 ffOutParser = do
     skipTill (try $ newline >> string "ff: ")
@@ -45,11 +47,9 @@ stepParser = do
     _ <- space
     act <- T.identifier pddlExprLexer
     args <- manyTill cParser (try newline)
-    return $ eAtomic act args
+    return $ eAtomic (T.pack act) args
     where
         cParser = do
             spaces
             name <- many1 (alphaNum <|> oneOf "_-")
-            return (eConst name :: Expr Const)
-
-
+            return (eConst (T.pack name) :: Expr Const)

@@ -38,6 +38,7 @@ module Planning.PDDL.PDDL3_0 (
 
 ) where
 
+import Data.Text (Text)
 import Text.ParserCombinators.Parsec
 import qualified Text.ParserCombinators.Parsec.Token as T
 
@@ -262,7 +263,7 @@ type DAEffectD =
 type DAEffectDExpr = Expr DAEffectD
 --deriving instance Data DAEffectDExpr
 
-type PDDLPrecond = (Maybe String, GDExpr)
+type PDDLPrecond = (Maybe Text, GDExpr)
 type PDDLEffect = ([TypedVarExpr], Maybe GDExpr, [EffectDExpr])
 type PDDLAction = Action PDDLPrecond PDDLEffect
 

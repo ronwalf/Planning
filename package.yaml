@@ -1,0 +1,42 @@
+name: planning
+version: '0.3.0'
+synopsis: A library for parsing and representing planning languages
+description: A type-safe, extensible PDDL parsing and representation library.
+category: AI, Planning
+author: Ron Alford <ronwalf@volus.net>
+maintainer: Ron Alford <ronwalf@volus.net>
+license: BSD3
+homepage: https://github.com/ronwalf/Planning
+git: git://github.com/ronwalf/Planning.git
+dependencies:
+- base >= 4.10 && < 10
+- Cabal >= 2.0
+- containers >= 0.6
+- fgl >= 5
+- parsec >= 3
+- prettyprinter >= 1.2
+- QuickCheck >= 2.0
+- text >= 1.2
+library:
+  source-dirs: src
+  ghc-options: -Wall
+  exposed-modules:
+  - Planning.Expressions
+  - Planning.Records
+  - Planning.Util
+  - Planning.Wouter
+  - Planning.PDDL.PDDL3_0
+  - Planning.PDDL.Parser
+  - Planning.PDDL.Representation
+  - Planning.PDDL.Pond
+  - Planning.PDDL.NDPDDL
+  - Planning.PDDL.FF
+  dependencies:
+  - syb >=0.2
+executables:
+  pddlcheck:
+    main: pddlcheck.hs
+    source-dirs: src-cmdline
+    ghc-options: -Wall
+    dependencies:
+    - planning

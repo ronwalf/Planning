@@ -4,6 +4,7 @@
     FlexibleInstances,
     FunctionalDependencies,
     MultiParamTypeClasses,
+    OverloadedStrings,
     StandaloneDeriving,
     TypeOperators,
     UndecidableInstances
@@ -69,23 +70,24 @@ module Planning.Expressions (
 ) where
 
 import Data.Data
+import Data.Text (Text)
 
 import Planning.Wouter
 
 ---------------------------------
 -- Term Holders
 ---------------------------------
-data Const e = Const String deriving (Data, Eq, Typeable)
+data Const e = Const Text deriving (Data, Eq, Typeable)
 instance Functor Const where
     fmap _ (Const x) = Const x
 instance FuncEq Const where
     funcEq (Const x) (Const y) = x == y
 instance FuncOrd Const where
     funcCompare (Const x) (Const y) = compare x y
-eConst :: (Const :<: f) => String -> Expr f
+eConst :: (Const :<: f) => Text -> Expr f
 eConst x = inject (Const x)
 
-data Var e = Var String deriving (Data, Eq, Typeable)
+data Var e = Var Text deriving (Data, Eq, Typeable)
 instance Functor Var where
     fmap _ (Var x) = Var x
 instance FuncEq Var where
@@ -93,10 +95,10 @@ instance FuncEq Var where
 instance FuncOrd Var where
     funcCompare (Var x) (Var y) = compare x y
 
-eVar :: (Var :<: f) => String -> Expr f
+eVar :: (Var :<: f) => Text -> Expr f
 eVar x = inject (Var x)
 
-data Function e = Function String [e] deriving (Data, Eq, Typeable)
+data Function e = Function Text [e] deriving (Data, Eq, Typeable)
 instance Functor Function where
     fmap f (Function n tl) = Function n $ map f tl
 instance FuncEq Function where
@@ -104,14 +106,14 @@ instance FuncEq Function where
 instance FuncOrd Function where
     funcCompare (Function n1 tl1) (Function n2 tl2) =
         compare (n1, tl1) (n2, tl2)
-eFunc :: (Function :<: f) => String -> [Expr f] -> Expr f
+eFunc :: (Function :<: f) => Text -> [Expr f] -> Expr f
 eFunc n tl = inject (Function n tl)
 
 ---------------------------------------
 -- Typing (commonly used to type Terms)
 ---------------------------------------
 
-data Typed t e = Typed t [String] deriving (Data, Eq, Typeable)
+data Typed t e = Typed t [Text] deriving (Data, Eq, Typeable)
 instance Functor (Typed t) where
     fmap _ (Typed e t) = Typed e t
 instance Eq t => FuncEq (Typed t) where
@@ -119,10 +121,10 @@ instance Eq t => FuncEq (Typed t) where
 instance Ord t => FuncOrd (Typed t) where
     funcCompare (Typed e1 t1) (Typed e2 t2) = compare (e1, t1) (e2, t2)
 class (Typed t :<: f) => TypedExpression t f where
-    eTyped :: t -> [String] -> Expr f
+    eTyped :: t -> [Text] -> Expr f
 instance (Typed t :<:f) => TypedExpression t f where
     eTyped e t = inject (Typed e t)
-type TypedTypeExpr = Expr (Typed String)
+type TypedTypeExpr = Expr (Typed Text)
 type TypedConst = Typed (Expr Const)
 type TypedConstExpr = Expr TypedConst
 type TypedVar = Typed (Expr Var)
@@ -144,20 +146,20 @@ removeType :: Untypeable f g => Expr f -> g
 removeType = foldExpr untype
 
 class (Functor f) => GetType f where
-    getType' :: f [String] -> [String]
+    getType' :: f [Text] -> [Text]
 instance (GetType f, GetType g) => GetType (f :+: g) where
     getType' (Inl x) = getType' x
     getType' (Inr x) = getType' x
 instance GetType (Typed t) where
     getType' (Typed _ tl) = tl
-getType :: GetType f => Expr f -> [String]
+getType :: GetType f => Expr f -> [Text]
 getType = foldExpr getType'
 
 --------------------------------------------------------
 -- Literals
 --------------------------------------------------------
 
-data Atomic t e = Atomic String [t] deriving (Data, Eq, Typeable)
+data Atomic t e = Atomic Text [t] deriving (Data, Eq, Typeable)
 instance Functor (Atomic a) where
     fmap _ (Atomic p tl) = Atomic p tl
 instance (Eq t) => FuncEq (Atomic t) where
@@ -167,7 +169,7 @@ instance (Ord t) => FuncOrd (Atomic t) where
         compare (p1, tl1) (p2, tl2)
 
 class AtomicExpression t f where
-    eAtomic :: String -> [t] -> Expr f
+    eAtomic :: Text -> [t] -> Expr f
 instance (Atomic t :<: f) => AtomicExpression t f where
     eAtomic p tl = inject (Atomic p tl)
 
@@ -262,7 +264,7 @@ instance (When p :<: f) => WhenExpression p f where
 ----------------------------------
 -- Preferences
 ----------------------------------
-data Preference e = Preference (Maybe String) e deriving (Data, Eq, Typeable)
+data Preference e = Preference (Maybe Text) e deriving (Data, Eq, Typeable)
 instance Functor Preference where
     fmap f (Preference n e) = Preference n $ f e
 instance FuncEq Preference where
@@ -270,7 +272,7 @@ instance FuncEq Preference where
 instance FuncOrd Preference where
     funcCompare (Preference n1 e1) (Preference n2 e2) =
         compare (n1, e1) (n2, e2)
-ePreference :: (Preference :<: f) => Maybe String -> Expr f -> Expr f
+ePreference :: (Preference :<: f) => Maybe Text -> Expr f -> Expr f
 ePreference n e = inject (Preference n e)
 
 class Functor f => UnPreference g f where
