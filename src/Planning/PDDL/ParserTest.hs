@@ -55,4 +55,5 @@ prop_typedTypeRT (TypesList t) = parseCheck
     (show $ pddlDoc t)
     t
 
+tests :: [TypesList -> Prop.Result]
 tests = [ prop_typedTypeRT ]

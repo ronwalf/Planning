@@ -11,8 +11,6 @@ git: git://github.com/ronwalf/Planning.git
 dependencies:
 - base >= 4.10 && < 10
 - Cabal >= 2.0
-- containers >= 0.6
-- fgl >= 5
 - parsec >= 3
 - prettyprinter >= 1.2
 - QuickCheck >= 2.0
