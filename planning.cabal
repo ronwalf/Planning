@@ -1,0 +1,68 @@
+cabal-version: 1.12
+
+-- This file has been generated from package.yaml by hpack version 0.33.0.
+--
+-- see: https://github.com/sol/hpack
+--
+-- hash: 25850e19ff08d877c79f1c5fd74c1e5265ca98e9b956bcf77011e95ebf6ab938
+
+name:           planning
+version:        0.3.1
+synopsis:       A library for parsing and representing planning languages
+description:    A type-safe, extensible PDDL parsing and representation library.
+category:       AI, Planning
+homepage:       https://github.com/ronwalf/Planning
+author:         Ron Alford <ronwalf@volus.net>
+maintainer:     Ron Alford <ronwalf@volus.net>
+license:        BSD3
+license-file:   LICENSE
+build-type:     Simple
+
+source-repository head
+  type: git
+  location: git://github.com/ronwalf/Planning.git
+
+library
+  exposed-modules:
+      Planning.Expressions
+      Planning.Records
+      Planning.Util
+      Planning.Wouter
+      Planning.PDDL.PDDL3_0
+      Planning.PDDL.Parser
+      Planning.PDDL.Representation
+      Planning.PDDL.Pond
+      Planning.PDDL.NDPDDL
+      Planning.PDDL.FF
+  other-modules:
+      Planning.PDDL.ParserTest
+      Paths_planning
+  hs-source-dirs:
+      src
+  ghc-options: -Wall
+  build-depends:
+      Cabal >=2.0
+    , QuickCheck >=2.0
+    , base >=4.10 && <10
+    , parsec >=3
+    , prettyprinter >=1.2
+    , syb >=0.2
+    , text >=1.2
+  default-language: Haskell2010
+
+executable pddlcheck
+  main-is: pddlcheck.hs
+  other-modules:
+      Paths_planning
+  hs-source-dirs:
+      src-cmdline
+  ghc-options: -Wall
+  build-depends:
+      Cabal >=2.0
+    , QuickCheck >=2.0
+    , base >=4.10 && <10
+    , parsec >=3
+    , planning
+    , prettyprinter >=1.2
+    , text >=1.2
+  default-language: Haskell2010

@@ -26,7 +26,7 @@ reparseCheck :: (PDDLDoc a, Eq a, Monad m) =>
 reparseCheck aparser fname ftxt = do
     (parsed, reparsed) <- reparse aparser fname ftxt
     when (parsed /= reparsed) $
-        fail $ "Parsed file not equal to reparsed file:\n" ++ (show $ pddlDoc parsed) ++ "\n" ++ (show $ pddlDoc reparsed)
+        error $ "Parsed file not equal to reparsed file:\n" ++ (show $ pddlDoc parsed) ++ "\n" ++ (show $ pddlDoc reparsed)
     return $ pddlDoc parsed
 
 

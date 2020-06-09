@@ -1,5 +1,4 @@
 dist
-planning.cabal
 .dist-scion
 .dist-buildwrapper
 .project

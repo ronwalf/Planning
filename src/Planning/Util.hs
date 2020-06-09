@@ -386,7 +386,7 @@ instance (CFConversion h f, CFConversion h g) => CFConversion h (f :+: g) where
     cfConversion' (Inr y) = cfConversion' y
 
 instance CFConversion g Var where
-    cfConversion' (Var v) = fail $ "Cannot convert: Variable " ++ (T.unpack v) ++ " found"
+    cfConversion' (Var v) = error $ "Cannot convert: Variable " ++ (T.unpack v) ++ " found"
 instance (Const :<: g) => CFConversion g Const where
     cfConversion' (Const c) = return $ eConst c
 instance (Function :<: g) => CFConversion g Function where
