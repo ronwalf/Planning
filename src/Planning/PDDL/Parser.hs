@@ -36,6 +36,7 @@ module Planning.PDDL.Parser (
     oneOfParser,
     unknownParser,
     emptyOrParser,
+    emptyAndListParser,
     maybeParser,
     derivedParser,
     actionParser,
@@ -67,7 +68,7 @@ baseLanguage = P.LanguageDef {
     P.commentLine = ";",
     P.nestedComments = False,
     P.identStart = letter,
-    P.identLetter = (alphaNum <|> oneOf "_-"),
+    P.identLetter = alphaNum <|> oneOf "_-",
     P.opStart = oneOf [],
     P.opLetter = oneOf [],
     P.reservedNames = [],
@@ -150,7 +151,7 @@ domainParser :: (HasName b, HasActions a b, HasDerived d b) =>
     -> CharParser b b
 domainParser mylex infoParser = P.whiteSpace mylex >> P.parens mylex (do
     P.reserved mylex "define"
-    P.parens mylex $ (do
+    P.parens mylex (do
         P.reserved mylex "domain"
         name <- P.identifier mylex
         updateState (setName $ T.pack name)
@@ -168,7 +169,7 @@ problemParser :: (HasName b) =>
     -> CharParser b b
 problemParser mylex probInfoParser = P.whiteSpace mylex >> P.parens mylex (do
     P.reserved mylex "define"
-    P.parens mylex $ (do
+    P.parens mylex (do
         P.reserved mylex "problem"
         name <- P.identifier mylex
         updateState (setName $ T.pack name)
@@ -177,10 +178,10 @@ problemParser mylex probInfoParser = P.whiteSpace mylex >> P.parens mylex (do
     getState)
 
 constParser :: (:<:) Const t => P.TokenParser a -> CharParser a (Expr t)
-constParser mylex = P.identifier mylex >>= (\x -> return $ eConst $ T.pack x)
+constParser mylex = P.identifier mylex >>= (return . eConst . T.pack)
 
 varParser :: (:<:) Var t => P.TokenParser a -> CharParser a (Expr t)
-varParser mylex = char '?' >> P.identifier mylex >>= (\x -> return $ eVar $ T.pack x)
+varParser mylex = char '?' >> P.identifier mylex >>= (return . eVar . T.pack)
 
 functionParser :: (:<:) Function t =>
     P.TokenParser a -> CharParser a (Expr t) -> CharParser a (Expr t)
@@ -459,6 +460,27 @@ emptyOrParser mylex p =
     P.parens mylex $
     option [] p
 
+{-|
+If 'p' parses expressions of the form <p> and returns a value,
+'emptyOrParser' parses expressions of the form:
+
+ * ()
+ * (<p>)
+ * (and <p>*)
+
+Returns [] for '()', otherwise returns the value from 'p'
+-}
+emptyAndListParser ::
+    P.TokenParser st
+    -> CharParser st f
+    -> CharParser st [f]
+emptyAndListParser mylex innerP =
+    emptyP <|> andListParser mylex innerP
+    where
+    emptyP = do
+        _ <- spaces
+        return []
+
 maybeParser :: P.TokenParser st
     -> CharParser st a
     -> CharParser st (Maybe a)
@@ -498,7 +520,7 @@ domainInfoParser mylex condParser =
      <|>
     (do
         try $ P.reserved mylex ":constraints"
-        conGD <- maybeParser mylex condParser
+        conGD <- emptyAndListParser mylex condParser
         updateState (setConstraints conGD))
     <|>
     (do
@@ -546,7 +568,7 @@ problemInfoParser mylex stateParser goalParser constraintParser =
     <|>
     (do
         try $ P.reserved mylex ":constraints"
-        cd <- maybeParser mylex constraintParser
+        cd <- emptyAndListParser mylex constraintParser
         updateState (setConstraints cd))
 
 collect ::

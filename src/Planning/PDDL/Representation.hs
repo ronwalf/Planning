@@ -6,7 +6,6 @@
     RankNTypes,
     OverloadedStrings,
     ScopedTypeVariables,
-    StandaloneDeriving,
     TypeOperators,
     TypeSynonymInstances,
     UndecidableInstances
@@ -26,7 +25,7 @@ module Planning.PDDL.Representation (
 
     PDDLDoc(..),
     PDDLDocExpr(..),
-    docList, docMaybe, docNonEmpty
+    docList, docMaybe, docNonEmpty, docAnd
 ) where
 
 import Data.Data
@@ -244,6 +243,10 @@ docMaybe :: (x -> Doc ann) -> Maybe x -> Doc ann
 docMaybe _ Nothing = emptyDoc
 docMaybe f (Just x) = f x
 
+docAnd :: forall a ann . (a -> Doc ann) -> [a] -> Doc ann
+docAnd f [] = parens emptyDoc
+docAnd f [t] = f t
+docAnd f tl = parens $ sep $ prettyT "and" : map f tl
 
 ------------------------------
 -- Domain Description
@@ -284,8 +287,7 @@ instance (Data a, Data b, Data g, PDDLDoc a, PDDLDoc b, PDDLDoc g) =>
         docList (parens . sep . (prettyT ":constants" :) . (:[]) . pddlDoc) (getConstants domain) :
         docList (parens . sep . (prettyT ":predicates" :) . map pddlDoc) (getPredicates domain) :
         docList (parens . sep . (prettyT ":functions" :) . (:[]) . pddlDoc) (getFunctions domain) :
-        maybe emptyDoc (\constr -> parens $ sep [prettyT ":constraints", pddlDoc constr])
-            (getConstraints domain) :
+        docList (parens . sep . (prettyT ":constraints" :) . (:[]) . docAnd pddlDoc) (getConstraints domain) :
         space :
         intersperse space (
           (flip map (getDerived domain) (\(p,b) ->
@@ -295,6 +297,7 @@ instance (Data a, Data b, Data g, PDDLDoc a, PDDLDoc b, PDDLDoc g) =>
               , pddlDoc b ]))
           ++ (map pddlDoc $ getActions domain))
 
+
 emptyDomain :: forall a b g. Domain a b g
 emptyDomain = Domain
     (Name "empty")
@@ -303,7 +306,7 @@ emptyDomain = Domain
     (Constants [])
     (Predicates [])
     (Functions [])
-    (Constraints Nothing)
+    (Constraints [])
     (Derived [])
     (Actions [])
 
@@ -396,7 +399,7 @@ instance (Data a, Data b, Data c,
         docList (parens . (prettyT ":objects" <+>) . pddlDoc) (getConstants prob) :
         docList (parens . sep . (prettyT ":init" : ) . map pddlDoc) (getInitial prob) :
         docMaybe (parens . (prettyT ":goal" <+>) . pddlDoc) (getGoal prob) :
-        docMaybe (parens . (prettyT ":constraints" <+>) . pddlDoc) (getConstraints prob) :
+        docList (parens . (prettyT ":constraints" <+>) . docAnd pddlDoc) (getConstraints prob) :
         []
 
 
@@ -409,4 +412,4 @@ emptyProblem = Problem
     (Constants [])
     (Initial [])
     (Goal Nothing)
-    (Constraints Nothing)
+    (Constraints [])

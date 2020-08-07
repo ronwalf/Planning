@@ -93,7 +93,7 @@ class (Data a, Typeable f) => HasPredicates f a | a -> f where
     setPredicates :: [f] -> a -> a
     setPredicates pl r = fromJust $ greplace r (Predicates pl)
 
-data Functions f = Functions [f] deriving (Eq, Show, Data, Typeable)
+newtype Functions f = Functions [f] deriving (Eq, Show, Data, Typeable)
 unFunctions :: Functions f -> [f]
 unFunctions (Functions a) = a
 class (Data a, Typeable f) => HasFunctions f a | a -> f where
@@ -102,13 +102,13 @@ class (Data a, Typeable f) => HasFunctions f a | a -> f where
     setFunctions :: [f] -> a -> a
     setFunctions pl r = fromJust $ greplace r (Functions pl)
 
-data Constraints f = Constraints (Maybe f) deriving (Eq, Show, Data, Typeable)
-unConstraints :: Constraints f -> Maybe f
+data Constraints f = Constraints [f] deriving (Eq, Show, Data, Typeable)
+unConstraints :: Constraints f -> [f]
 unConstraints (Constraints a) = a
 class (Data a, Typeable f) => HasConstraints f a | a -> f where
-    getConstraints :: a -> Maybe f
+    getConstraints :: a -> [f]
     getConstraints = unConstraints . fromJust . gfind
-    setConstraints :: Maybe f -> a -> a
+    setConstraints ::  [f] -> a -> a
     setConstraints pre r = fromJust $ greplace r (Constraints pre)
 
 data Goal f = Goal (Maybe f) deriving (Eq, Show, Data, Typeable)

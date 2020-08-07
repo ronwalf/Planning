@@ -7,7 +7,7 @@ cabal-version: 1.12
 -- hash: 25850e19ff08d877c79f1c5fd74c1e5265ca98e9b956bcf77011e95ebf6ab938
 
 name:           planning
-version:        0.3.1
+version:        0.4.0
 synopsis:       A library for parsing and representing planning languages
 description:    A type-safe, extensible PDDL parsing and representation library.
 category:       AI, Planning

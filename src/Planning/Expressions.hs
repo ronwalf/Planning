@@ -4,8 +4,6 @@
     FlexibleInstances,
     FunctionalDependencies,
     MultiParamTypeClasses,
-    OverloadedStrings,
-    StandaloneDeriving,
     TypeOperators,
     UndecidableInstances
   #-}
