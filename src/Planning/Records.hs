@@ -56,7 +56,7 @@ class Data a => HasRequirements a where
     setRequirements :: [Text] -> a -> a
     setRequirements rl r = fromJust $ greplace r (Requirements rl)
 
-data Types f = Types [f] deriving (Eq, Show, Data, Typeable)
+newtype Types f = Types [f] deriving (Eq, Show, Data, Typeable)
 unTypes :: Types f -> [f]
 unTypes (Types a) = a
 class (Data a, Typeable f) => HasTypes f a | a -> f where
@@ -65,7 +65,7 @@ class (Data a, Typeable f) => HasTypes f a | a -> f where
     setTypes :: [f] -> a -> a
     setTypes pl r = fromJust $ greplace r (Types pl)
 
-data Constants f = Constants [f] deriving (Eq, Show, Data, Typeable)
+newtype Constants f = Constants [f] deriving (Eq, Show, Data, Typeable)
 unConstants :: Constants f -> [f]
 unConstants (Constants a) = a
 class (Data a, Typeable f) => HasConstants f a | a -> f where
@@ -74,7 +74,7 @@ class (Data a, Typeable f) => HasConstants f a | a -> f where
     setConstants :: [f] -> a -> a
     setConstants pl r = fromJust $ greplace r (Constants pl)
 
-data Initial f = Initial [f] deriving (Eq, Show, Data, Typeable)
+newtype Initial f = Initial [f] deriving (Eq, Show, Data, Typeable)
 unInitial :: Initial f -> [f]
 unInitial (Initial a) = a
 class (Data a, Typeable f) => HasInitial f a | a -> f where
@@ -84,7 +84,7 @@ class (Data a, Typeable f) => HasInitial f a | a -> f where
     setInitial pl r = fromJust $ greplace r (Initial pl)
 
 
-data Predicates f = Predicates [f] deriving (Eq, Show, Data, Typeable)
+newtype Predicates f = Predicates [f] deriving (Eq, Show, Data, Typeable)
 unPredicates :: Predicates f -> [f]
 unPredicates (Predicates a) = a
 class (Data a, Typeable f) => HasPredicates f a | a -> f where
@@ -102,7 +102,7 @@ class (Data a, Typeable f) => HasFunctions f a | a -> f where
     setFunctions :: [f] -> a -> a
     setFunctions pl r = fromJust $ greplace r (Functions pl)
 
-data Constraints f = Constraints [f] deriving (Eq, Show, Data, Typeable)
+newtype Constraints f = Constraints [f] deriving (Eq, Show, Data, Typeable)
 unConstraints :: Constraints f -> [f]
 unConstraints (Constraints a) = a
 class (Data a, Typeable f) => HasConstraints f a | a -> f where
@@ -111,7 +111,7 @@ class (Data a, Typeable f) => HasConstraints f a | a -> f where
     setConstraints ::  [f] -> a -> a
     setConstraints pre r = fromJust $ greplace r (Constraints pre)
 
-data Goal f = Goal (Maybe f) deriving (Eq, Show, Data, Typeable)
+newtype Goal f = Goal (Maybe f) deriving (Eq, Show, Data, Typeable)
 unGoal :: Goal f -> Maybe f
 unGoal (Goal a) = a
 class (Data a, Typeable f) => HasGoal f a | a -> f where
@@ -120,7 +120,7 @@ class (Data a, Typeable f) => HasGoal f a | a -> f where
     setGoal :: Maybe f -> a -> a
     setGoal pre r = fromJust $ greplace r (Goal pre)
 
-data Actions f = Actions [f] deriving (Eq, Show, Data, Typeable)
+newtype Actions f = Actions [f] deriving (Eq, Show, Data, Typeable)
 unActions :: Actions f -> [f]
 unActions (Actions a) = a
 class (Data a, Typeable f) => HasActions f a | a -> f where
@@ -129,7 +129,7 @@ class (Data a, Typeable f) => HasActions f a | a -> f where
     setActions :: [f] -> a -> a
     setActions pl r = fromJust $ greplace r (Actions pl)
 
-data Derived f = Derived [f] deriving (Eq, Show, Data, Typeable)
+newtype Derived f = Derived [f] deriving (Eq, Show, Data, Typeable)
 unDerived :: Derived f -> [f]
 unDerived (Derived a) = a
 class (Data a, Typeable f) => HasDerived f a | a -> f where
@@ -138,7 +138,7 @@ class (Data a, Typeable f) => HasDerived f a | a -> f where
     setDerived :: [f] -> a -> a
     setDerived pl r = fromJust $ greplace r (Derived pl)
 
-data Parameters f = Parameters [f] deriving (Eq, Show, Data, Typeable)
+newtype Parameters f = Parameters [f] deriving (Eq, Show, Data, Typeable)
 unParameters :: Parameters f -> [f]
 unParameters (Parameters a) = a
 class (Data a, Typeable f) => HasParameters f a | a -> f where
@@ -147,7 +147,7 @@ class (Data a, Typeable f) => HasParameters f a | a -> f where
     setParameters :: [f] -> a -> a
     setParameters pl r = fromJust $ greplace r (Parameters pl)
 
-data Precondition f = Precondition [f] deriving (Eq, Show, Data, Typeable)
+newtype Precondition f = Precondition [f] deriving (Eq, Show, Data, Typeable)
 unPrecondition :: Precondition f -> [f]
 unPrecondition (Precondition a) = a
 class (Data a, Typeable f) => HasPrecondition f a | a -> f where
@@ -156,7 +156,7 @@ class (Data a, Typeable f) => HasPrecondition f a | a -> f where
     setPrecondition :: [f] -> a -> a
     setPrecondition pre r = fromJust $ greplace r (Precondition pre)
 
-data Effect f = Effect [f] deriving (Eq, Show, Data, Typeable)
+newtype Effect f = Effect [f] deriving (Eq, Show, Data, Typeable)
 unEffect :: Effect f -> [f]
 unEffect (Effect a) = a
 class (Data a, Typeable f) => HasEffect f a | a -> f where

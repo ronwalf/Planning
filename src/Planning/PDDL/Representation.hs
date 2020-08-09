@@ -244,7 +244,7 @@ docMaybe _ Nothing = emptyDoc
 docMaybe f (Just x) = f x
 
 docAnd :: forall a ann . (a -> Doc ann) -> [a] -> Doc ann
-docAnd f [] = parens emptyDoc
+docAnd _ [] = parens emptyDoc
 docAnd f [t] = f t
 docAnd f tl = parens $ sep $ prettyT "and" : map f tl
 
