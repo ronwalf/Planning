@@ -32,6 +32,10 @@ instance (Functor g, Const :<: g) => LiftExpression Const g where
     liftE' (Const g) = eConst g
 instance (Functor g, Function :<: g) => LiftExpression Function g where
     liftE' (Function p tl) = eFunc p tl
+instance (Functor g, Not :<: g) => LiftExpression Not g where
+    liftE' (Not e) = eNot e
+instance (Functor g, Atomic e :<: g) => LiftExpression (Atomic e) g where
+    liftE' (Atomic p tl) = eAtomic p tl
 
 class (Functor f) => IsPosLit f where
     isPosLit' :: f Bool -> Bool
