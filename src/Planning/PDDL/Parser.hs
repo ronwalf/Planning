@@ -475,11 +475,7 @@ emptyAndListParser ::
     -> CharParser st f
     -> CharParser st [f]
 emptyAndListParser mylex innerP =
-    emptyP <|> andListParser mylex innerP
-    where
-    emptyP = do
-        _ <- spaces
-        return []
+    option [] $ try $ andListParser mylex innerP
 
 maybeParser :: P.TokenParser st
     -> CharParser st a
